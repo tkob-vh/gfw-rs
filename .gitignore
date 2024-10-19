@@ -1,0 +1,22 @@
+# Visual Studio Code
+.vscode/*
+!.vscode/*.example
+.devcontainer/
+
+# JetBrains
+.idea/
+*.iml
+.fleet/
+
+# CLion
+cmake-build-debug/
+/cmake-build-wsl_profile/
+
+# build
+*.exe
+*.app
+build/
+
+# Rust
+target/
+Cargo.lock
