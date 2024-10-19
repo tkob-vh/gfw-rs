@@ -1,0 +1,2 @@
+- Hopefully, use [rustdoc](https://rustwiki.org/en/rustdoc/)
+- Commit messages can be: " {type}({scope}): {subject} "
