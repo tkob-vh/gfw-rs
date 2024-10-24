@@ -16,7 +16,7 @@
 /// let strings = byte_vec_to_strings(bytes);
 /// assert_eq!(strings, vec!["hello".to_string(), "world".to_string(), "this".to_string(), "is".to_string(), "a".to_string(), "test".to_string()]);
 /// ```
-fn byte_vec_to_strings(bytes: Vec<u8>) -> Vec<String> {
+pub fn byte_vec_to_strings(bytes: Vec<u8>) -> Vec<String> {
     bytes
         .split(|&b| b == b' ')
         .map(|slice| String::from_utf8(slice.to_vec()).unwrap())

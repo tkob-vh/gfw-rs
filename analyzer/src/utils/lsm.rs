@@ -4,7 +4,7 @@
 
 /// Represents the possible actions that can be taken by the linear state machine.
 #[derive(Debug, PartialEq)]
-enum LSMAction {
+pub enum LSMAction {
     Pause,
     Next,
     Reset,
@@ -14,7 +14,7 @@ enum LSMAction {
 /// A linear state machine that executes a series of steps in order.
 /// Each step is a function that returns an `LSMAction` indicating the next action to take.
 /// The state machine can be paused, reset, or cancelled based on the actions returned by the steps.
-struct LinearStateMachine {
+pub struct LinearStateMachine {
     steps: Vec<Box<dyn Fn() -> LSMAction>>,
     index: usize,
     cancelled: bool,
@@ -26,7 +26,7 @@ impl LinearStateMachine {
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    fn new(steps: Vec<Box<dyn Fn() -> LSMAction>>) -> Self {
+    pub fn new(steps: Vec<Box<dyn Fn() -> LSMAction>>) -> Self {
         LinearStateMachine {
             steps,
             index: 0,
@@ -40,7 +40,7 @@ impl LinearStateMachine {
     ///
     /// A tuple where the first element indicates if the state machine was cancelled,
     /// and the second element indicates if the state machine has completed all steps.
-    fn run(&mut self) -> (bool, bool) {
+    pub fn run(&mut self) -> (bool, bool) {
         if self.index >= self.steps.len() {
             return (self.cancelled, true);
         }
@@ -65,12 +65,12 @@ impl LinearStateMachine {
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    fn append_steps(&mut self, steps: Vec<Box<dyn Fn() -> LSMAction>>) {
+    pub fn append_steps(&mut self, steps: Vec<Box<dyn Fn() -> LSMAction>>) {
         self.steps.extend(steps);
     }
 
     /// Resets the state machine to the initial state.
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.index = 0;
         self.cancelled = false;
     }
