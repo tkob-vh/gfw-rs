@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "analyzer", 
-    "apiserver", 
-    "cmd", 
-    "engine", 
-    "io", 
-    "modifier", 
-    "ruleset",
+  "analyzer",
+  "apiserver",
+  "cmd",
+  "engine",
+  "io",
+  "modifier",
+  "ruleset",
 ]
 
 
@@ -16,12 +16,15 @@ axum = "0.7.7"
 tokio = { version = "1.40.0", features = ["full"] }
 tower = "0.5.1"
 clap = "4.5.20"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+pnet = "0.35.0"
 
 ## workspace members
-nt-analyzer = { package = "analyzer", path = 'analyzer'}
-nt-apiserver = { package = "apiserver", path = 'apiserver'}
-nt-cmd = { package = "cmd", path = 'cmd'}
-nt-engine = { package = "engine", path = 'engine'}
-nt-io = { package = "io", path = 'io'}
-nt-modifier = { package = "modifier", path = 'modifier'}
-nt-ruleset = { package = "ruleset", path = 'ruleset'}
+nt-analyzer = { package = "analyzer", path = 'analyzer' }
+nt-apiserver = { package = "apiserver", path = 'apiserver' }
+nt-cmd = { package = "cmd", path = 'cmd' }
+nt-engine = { package = "engine", path = 'engine' }
+nt-io = { package = "io", path = 'io' }
+nt-modifier = { package = "modifier", path = 'modifier' }
+nt-ruleset = { package = "ruleset", path = 'ruleset' }

@@ -5,7 +5,7 @@ pub mod udp;
 pub mod utils;
 
 pub mod analyzer {
-    use std::{net::IpAddr, sync::Arc};
+    use std::{net::IpAddr, rc::Rc};
 
     /// The `Analyzer` trait defines the basic interface for all analyzers.
     pub trait Analyzer {
@@ -137,7 +137,7 @@ pub mod analyzer {
         fn close(&mut self, limited: bool) -> Option<PropUpdate>;
     }
 
-    pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any>>;
+    pub type PropMap = std::collections::HashMap<String, Rc<dyn std::any::Any>>;
     pub type CombinePropMap = std::collections::HashMap<String, PropMap>;
 
     /// The `PropUpdateType` enum defines the types of property updates that can occur.
