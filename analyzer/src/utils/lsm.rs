@@ -11,12 +11,14 @@ pub enum LSMAction {
     Cancel,
 }
 
+pub type StepType<T> = Box<dyn Fn(&mut T) -> LSMAction>;
+
 /// A linear state machine that executes a series of steps in order.
 /// Each step is a function that returns an `LSMAction` indicating the next action to take.
 /// The state machine can be paused, reset, or cancelled based on the actions returned by the steps.
 /// The generic type `T` is a struct which contains the LinearStateMachine field.
 pub struct LinearStateMachine<T> {
-    steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>,
+    steps: Vec<StepType<T>>,
     index: usize,
     cancelled: bool,
 }
@@ -27,7 +29,7 @@ impl<T> LinearStateMachine<T> {
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    pub fn new(steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>) -> Self {
+    pub fn new(steps: Vec<StepType<T>>) -> Self {
         LinearStateMachine {
             steps,
             index: 0,
@@ -66,7 +68,7 @@ impl<T> LinearStateMachine<T> {
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    pub fn append_steps(&mut self, steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>) {
+    pub fn append_steps(&mut self, steps: Vec<StepType<T>>) {
         self.steps.extend(steps);
     }
 

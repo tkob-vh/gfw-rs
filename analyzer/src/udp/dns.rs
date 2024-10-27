@@ -23,13 +23,13 @@ pub struct DNSAnalyzer {}
 
 impl Analyzer for DNSAnalyzer {
     fn name(&self) -> &str {
-        return "dns";
+        "dns"
     }
 
     /// DNS is a stateless protocol, with unlimited amount of back-and-forth exchanges.
     /// Don't limit it here.
     fn limit(&self) -> u32 {
-        return 0;
+        0
     }
 }
 
@@ -37,7 +37,7 @@ impl UDPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_udp(&self, info: analyzer::UDPInfo) -> Box<dyn analyzer::UDPStream> {
-        return Box::new(DNSUDPStream::new());
+        Box::new(DNSUDPStream::new())
     }
 }
 
@@ -45,7 +45,7 @@ impl TCPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_tcp(&self, info: analyzer::TCPInfo) -> Box<dyn analyzer::TCPStream> {
-        return Box::new(DNSTCPStream::new());
+        Box::new(DNSTCPStream::new())
     }
 }
 
@@ -78,13 +78,13 @@ impl UDPStream for DNSUDPStream {
         // Reset the invalid count on valid DNS message.
         self.invalid_count = 0;
 
-        return (
+        (
             Some(analyzer::PropUpdate {
                 update_type: PropUpdateType::Replace,
                 map: prop_map,
             }),
             false,
-        );
+        )
     }
 
     /// The argument `limited` is not used here.
@@ -164,7 +164,7 @@ impl DNSTCPStream {
         // Get the message length(Big Enddian).
         self.req_msg_len = bs.get_u16();
 
-        return utils::lsm::LSMAction::Next;
+        utils::lsm::LSMAction::Next
     }
 
     /// Get the length of the response message.
@@ -185,7 +185,7 @@ impl DNSTCPStream {
         // Get the message length(Big Enddian).
         self.resp_msg_len = bs.get_u16();
 
-        return utils::lsm::LSMAction::Next;
+        utils::lsm::LSMAction::Next
     }
 
     /// Get the content of the request message.
@@ -213,7 +213,7 @@ impl DNSTCPStream {
         self.req_updated = true;
 
         // Successfully processed the message, and start from the beginning.
-        return utils::lsm::LSMAction::Reset;
+        utils::lsm::LSMAction::Reset
     }
 
     /// Get the content of the response message.
@@ -241,7 +241,7 @@ impl DNSTCPStream {
         self.resp_updated = true;
 
         // Successfully processed the message, and start from the beginning.
-        return utils::lsm::LSMAction::Reset;
+        utils::lsm::LSMAction::Reset
     }
 }
 
@@ -260,7 +260,7 @@ impl TCPStream for DNSTCPStream {
             return (None, true);
         }
 
-        if data.len() == 0 {
+        if data.is_empty() {
             return (None, false);
         }
 
@@ -305,7 +305,7 @@ impl TCPStream for DNSTCPStream {
             }
         }
 
-        return (update, cancelled || (self.req_done && self.resp_done));
+        (update, cancelled || (self.req_done && self.resp_done))
     }
 
     /// The argument `limited` is not used here.
@@ -316,7 +316,7 @@ impl TCPStream for DNSTCPStream {
 
         self.req_map.clear();
         self.resp_map.clear();
-        return None;
+        None
     }
 }
 
@@ -414,7 +414,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
         prop_map.insert("additionals".to_string(), Rc::new(prop_map_additionals));
     }
 
-    return Some(prop_map);
+    Some(prop_map)
 }
 
 /// Convert a Response Record to PropMap.
@@ -459,5 +459,5 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> analyzer::PropMap {
         _ => {}
     }
 
-    return prop_map;
+    prop_map
 }
