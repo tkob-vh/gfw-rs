@@ -14,19 +14,20 @@ pub enum LSMAction {
 /// A linear state machine that executes a series of steps in order.
 /// Each step is a function that returns an `LSMAction` indicating the next action to take.
 /// The state machine can be paused, reset, or cancelled based on the actions returned by the steps.
-pub struct LinearStateMachine {
-    steps: Vec<Box<dyn Fn() -> LSMAction>>,
+/// The generic type `T` is a struct which contains the LinearStateMachine field.
+pub struct LinearStateMachine<T> {
+    steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>,
     index: usize,
     cancelled: bool,
 }
 
-impl LinearStateMachine {
+impl<T> LinearStateMachine<T> {
     /// Creates a new LinearStateMachine with the given steps.
     ///
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    pub fn new(steps: Vec<Box<dyn Fn() -> LSMAction>>) -> Self {
+    pub fn new(steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>) -> Self {
         LinearStateMachine {
             steps,
             index: 0,
@@ -40,13 +41,13 @@ impl LinearStateMachine {
     ///
     /// A tuple where the first element indicates if the state machine was cancelled,
     /// and the second element indicates if the state machine has completed all steps.
-    pub fn run(&mut self) -> (bool, bool) {
+    pub fn run(&mut self, target: &mut T) -> (bool, bool) {
         if self.index >= self.steps.len() {
             return (self.cancelled, true);
         }
 
         while self.index < self.steps.len() {
-            let action = (self.steps[self.index])();
+            let action = (self.steps[self.index])(target);
             match action {
                 LSMAction::Pause => return (false, false),
                 LSMAction::Next => self.index += 1,
@@ -65,7 +66,7 @@ impl LinearStateMachine {
     /// # Arguments
     ///
     /// * `steps` - A vector of boxed functions that return an `LSMAction`.
-    pub fn append_steps(&mut self, steps: Vec<Box<dyn Fn() -> LSMAction>>) {
+    pub fn append_steps(&mut self, steps: Vec<Box<dyn Fn(&mut T) -> LSMAction>>) {
         self.steps.extend(steps);
     }
 
