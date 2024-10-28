@@ -1,13 +1,26 @@
+//! DNS Analyzer Module
+//!
+//! This module provides functionality to analyze DNS traffic over both UDP and TCP protocols.
+//! It includes implementations for DNS analyzers and streams, which parse and process DNS messages.
+//!
+//! # Structures
+//!
+//! - `DNSAnalyzer`: Implements the `Analyzer`, `UDPAnalyzer`, and `TCPAnalyzer` traits for DNS.
+//! - `DNSUDPStream`: Implements the `UDPStream` trait for handling DNS messages over UDP.
+//! - `DNSTCPStream`: Implements the `TCPStream` trait for handling DNS messages over TCP.
+//!
+//! # Functions
+//!
+//! - `parse_dns_message`: Parses a DNS message and returns a property map.
+//! - `dns_rr_to_prop_map`: Converts a DNS response record to a property map.
+
 use crate::analyzer::{self, PropUpdateType, TCPStream, UDPAnalyzer, UDPStream};
 use crate::analyzer::{Analyzer, TCPAnalyzer};
 use crate::utils;
 use bytes::{Buf, BytesMut};
+use pnet::packet::dns::{self};
 use std::cell::RefCell;
 use std::rc::Rc;
-//use std::sync::Rc;
-
-use pnet::packet::dns::{self};
-
 use tracing::error;
 
 // The max number of consecutive invalid dns packets allowed.
