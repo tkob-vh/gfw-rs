@@ -83,3 +83,68 @@ impl<T> LinearStateMachine<T> {
         self.cancelled = false;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestState {
+        value: i32,
+    }
+
+    fn step_increment(state: &mut TestState) -> LSMAction {
+        state.value += 1;
+        LSMAction::Next
+    }
+
+    #[allow(unused_variables)]
+    fn step_pause(state: &mut TestState) -> LSMAction {
+        LSMAction::Pause
+    }
+
+    #[test]
+    fn test_run() {
+        let steps: Vec<StepType<TestState>> = vec![Box::new(step_increment), Box::new(step_pause)];
+        let mut lsm = LinearStateMachine::new(steps);
+        let mut state = TestState { value: 0 };
+
+        // Test running the state machine
+        let (cancelled, completed) = lsm.run(&mut state);
+        assert_eq!(state.value, 1);
+        assert_eq!(cancelled, false);
+        assert_eq!(completed, false);
+    }
+
+    #[test]
+    fn test_append_steps() {
+        let initial_steps: Vec<StepType<TestState>> = vec![Box::new(step_increment)];
+        let mut lsm = LinearStateMachine::new(initial_steps);
+        let mut state = TestState { value: 0 };
+
+        lsm.run(&mut state);
+        assert_eq!(state.value, 1);
+
+        let additional_steps: Vec<StepType<TestState>> = vec![Box::new(step_increment)];
+        lsm.append_steps(additional_steps);
+
+        lsm.run(&mut state);
+        assert_eq!(state.value, 2);
+    }
+
+    #[test]
+    fn test_reset() {
+        let steps: Vec<StepType<TestState>> = vec![Box::new(step_increment), Box::new(step_pause)];
+        let mut lsm = LinearStateMachine::new(steps);
+        let mut state = TestState { value: 0 };
+
+        lsm.run(&mut state);
+        assert_eq!(state.value, 1);
+
+        lsm.reset();
+        assert_eq!(lsm.index, 0);
+        assert_eq!(lsm.cancelled, false);
+
+        lsm.run(&mut state);
+        assert_eq!(state.value, 2);
+    }
+}

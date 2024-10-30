@@ -16,7 +16,7 @@
 
 use crate::*;
 use bytes::{Buf, BytesMut};
-use pnet::packet::dns::{self};
+use pnet::packet::dns;
 use std::cell::RefCell;
 use std::rc::Rc;
 use tracing::error;
@@ -469,4 +469,155 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     }
 
     prop_map
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BytesMut;
+    use hex;
+    use pnet::packet::dns::DnsPacket;
+
+    #[test]
+    fn test_dns_analyzer_name() {
+        let analyzer = DNSAnalyzer {};
+        assert_eq!(analyzer.name(), "dns");
+    }
+
+    #[test]
+    fn test_dns_analyzer_limit() {
+        let analyzer = DNSAnalyzer {};
+        assert_eq!(analyzer.limit(), 0);
+    }
+
+    #[test]
+    fn test_dns_udp_stream_new() {
+        let stream = DNSUDPStream::new();
+        assert_eq!(stream.invalid_count, 0);
+    }
+
+    #[test]
+    fn test_dns_udp_stream_feed_valid_message() {
+        let mut stream = DNSUDPStream::new();
+
+        let hex_string = concat!(
+            "24 1a 01 00 00 01 00 00 00 00 00 00 03 77 77 77 06 67 6f 6f 67 6c 65 03",
+            "63 6f 6d 00 00 01 00 01"
+        )
+        .replace(" ", "");
+        let data = hex::decode(hex_string).expect("Invalid hex string"); // A minimal valid DNS request message
+
+        let (update, done) = stream.feed(false, &data);
+        assert!(update.is_some());
+        assert!(!done);
+        assert_eq!(stream.invalid_count, 0);
+    }
+
+    #[test]
+    fn test_dns_udp_stream_feed_valid_response() {
+        let mut stream = DNSUDPStream::new();
+
+        let hex_string = concat!(
+            "24 1a 81 80 00 01 00 03 00 00 00 00 03 77  77 77 06",
+            "67 6f 6f 67 6c 65 03 63 6f 6d 00 00 01  00 01 c0 0c 00 05 00 01 00",
+            "05 28 39 00 12 03 77  77 77 01 6c 06 67 6f 6f 67 6c 65 03 63 6f 6d",
+            "00 c0 2c 00 01 00 01 00 00 00 e3 00 04 42 f9 59 63  c0 2c 00 01 00",
+            "01 00 00 00 e3 00 04 42 f9 59 68"
+        )
+        .replace(" ", "");
+        let data = hex::decode(hex_string).expect("Invalid hex string"); // A minimal valid DNS request message
+
+        let (update, done) = stream.feed(true, &data);
+        assert!(update.is_some());
+        assert!(!done);
+    }
+
+    #[test]
+    fn test_dns_udp_stream_feed_invalid_message() {
+        let mut stream = DNSUDPStream::new();
+        let data = vec![0u8; 1]; // An invalid DNS message
+        let (update, done) = stream.feed(false, &data);
+        assert!(update.is_none());
+        assert!(!done);
+        assert_eq!(stream.invalid_count, 1);
+    }
+
+    #[test]
+    fn test_dns_tcp_stream_new() {
+        let stream = DNSTCPStream::new();
+        assert_eq!(stream.req_buf.len(), 0);
+        assert_eq!(stream.resp_buf.len(), 0);
+    }
+
+    #[test]
+    fn test_dns_tcp_stream_feed_valid_request() {
+        let mut stream = DNSTCPStream::new();
+
+        let hex_string = concat!(
+            "00 20 24 1a 01 00 00 01 00 00 00 00 00 00 03",
+            "77 77 77 06 67 6f 6f 67 6c 65 03 63 6f 6d 00 00 01  00 01"
+        )
+        .replace(" ", "");
+        let data = hex::decode(hex_string).expect("Invalid hex string"); // A minimal valid DNS request message
+        let (update, done) = stream.feed(false, true, false, 0, &data);
+        assert!(update.is_some());
+        assert!(!done);
+    }
+
+    #[test]
+    fn test_dns_tcp_stream_feed_valid_response() {
+        let mut stream = DNSTCPStream::new();
+
+        let hex_string = concat!(
+            "00 5e 24 1a 81 80 00 01 00 03 00 00 00 00 03",
+            "77 77 77 06 67 6f 6f 67 6c 65 03 63 6f 6d 00 00 01  00 01 c0 0c 00",
+            "05 00 01 00 05 28 39 00 12 03 77  77 77 01 6c 06 67 6f 6f 67 6c 65",
+            "03 63 6f 6d 00  c0 2c 00 01 00 01 00 00 00 e3 00 04 42 f9 59 63 c0",
+            "2c 00 01 00 01 00 00 00 e3 00 04 42 f9 59 68"
+        )
+        .replace(" ", "");
+        let data = hex::decode(hex_string).expect("Invalid hex string"); // A minimal valid DNS request message
+
+        let (update, done) = stream.feed(true, true, false, 0, &data);
+        assert!(update.is_some());
+        assert!(!done);
+    }
+
+    //#[test]
+    //fn test_dns_tcp_stream_feed_invalid_request() {
+    //    let mut stream = DNSTCPStream::new();
+    //    let data = vec![0u8]; // An invalid DNS request message
+    //    let (update, done) = stream.feed(false, true, false, 0, &data);
+    //    assert!(update.is_none());
+    //    assert!(done);
+    //}
+    //
+    //#[test]
+    //fn test_dns_tcp_stream_feed_invalid_response() {
+    //    let mut stream = DNSTCPStream::new();
+    //    let data = vec![0u8]; // An invalid DNS response message
+    //    let (update, done) = stream.feed(true, true, false, 0, &data);
+    //    assert!(update.is_none());
+    //    assert!(done);
+    //}
+    //
+
+    #[test]
+    fn test_dns_rr_to_prop_map() {
+        let hex_string = concat!(
+            "24 1a 81 80 00 01 00 03 00 00 00 00 03 77  77",
+            "77 06 67 6f 6f 67 6c 65 03 63 6f 6d 00 00 01  00 01 c0 0c 00 05 00",
+            "01 00 05 28 39 00 12 03 77  77 77 01 6c 06 67 6f 6f 67 6c 65 03 63",
+            "6f 6d 00  c0 2c 00 01 00 01 00 00 00 e3 00 04 42 f9 59 63  c0 2c 00",
+            "01 00 01 00 00 00 e3 00 04 42 f9 59 68"
+        )
+        .replace(" ", "");
+        let data = hex::decode(hex_string).expect("Invalid hex string"); // A minimal valid DNS request message
+
+        let msg = BytesMut::from(&data[..]);
+        let dns_packet = DnsPacket::new(&msg).expect("Invalid message.");
+        let rr = dns_packet.get_responses_iter().next().unwrap();
+        let prop_map = dns_rr_to_prop_map(&rr);
+        assert!(prop_map.contains_key("name"));
+    }
 }

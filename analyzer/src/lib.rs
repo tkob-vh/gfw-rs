@@ -4,8 +4,6 @@
 pub mod udp;
 pub mod utils;
 
-/// The `analyzer` module provides traits and structures for analyzing TCP and UDP streams.
-/// The Get method for PropMap and CombinedPropMap is not defined temporarily.
 use std::{net::IpAddr, rc::Rc};
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
@@ -44,20 +42,6 @@ pub trait TCPAnalyzer: Analyzer {
 }
 
 /// The `TCPInfo` struct holds information about a TCP connection.
-///
-/// # Example
-///
-/// ```
-/// use analyzer::TCPInfo;
-/// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-///
-/// let info = TCPInfo {
-///     src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-///     dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-///     src_port: 12345,
-///     dst_port: 80,
-/// };
-/// ```
 pub struct TCPInfo {
     /// SrcIP is the source IP address.
     pub src_ip: IpAddr,
@@ -120,18 +104,6 @@ pub trait UDPAnalyzer: Analyzer {
 }
 
 /// The `UDPInfo` struct holds information about a UDP connection.
-/// # Example
-///
-/// ```
-/// use analyzer::UDPInfo;
-/// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-/// let info = UDPInfo {
-///     src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-///     dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-///     src_port: 12345,
-///     dst_port: 80,
-/// };
-/// ```
 pub struct UDPInfo {
     /// SrcIP is the source IP address.
     pub src_ip: IpAddr,
@@ -179,6 +151,7 @@ pub type PropMap = std::collections::HashMap<String, Rc<dyn std::any::Any>>;
 pub type CombinePropMap = std::collections::HashMap<String, PropMap>;
 
 /// The `PropUpdateType` enum defines the types of property updates that can occur.
+#[derive(PartialEq, Debug)]
 pub enum PropUpdateType {
     /// None
     None,
@@ -191,22 +164,195 @@ pub enum PropUpdateType {
 }
 
 /// The `PropUpdate` struct holds information about a property update.
-/// # Example
-///
-/// ```
-/// use analyzer::{PropMap, PropUpdate, PropUpdateType};
-/// use std::rc::Rc;
-///
-/// let mut map = PropMap::new();
-/// map.insert("key".to_string(), Rc::new("value".to_string()));
-/// let update = PropUpdate {
-///     update_type: PropUpdateType::Merge,
-///     map,
-/// };
-/// ```
 pub struct PropUpdate {
     /// The PropUpdateType
     pub update_type: PropUpdateType,
     /// The current map
     pub map: PropMap,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::rc::Rc;
+
+    struct DummyAnalyzer;
+
+    impl Analyzer for DummyAnalyzer {
+        fn name(&self) -> &str {
+            "DummyAnalyzer"
+        }
+
+        fn limit(&self) -> u32 {
+            1000
+        }
+    }
+
+    struct DummyTCPStream;
+
+    impl TCPStream for DummyTCPStream {
+        fn feed(
+            &mut self,
+            _rev: bool,
+            _start: bool,
+            _end: bool,
+            _skip: usize,
+            _data: &[u8],
+        ) -> (Option<PropUpdate>, bool) {
+            (None, true)
+        }
+
+        fn close(&mut self, _limited: bool) -> Option<PropUpdate> {
+            None
+        }
+    }
+
+    struct DummyTCPAnalyzer;
+
+    impl Analyzer for DummyTCPAnalyzer {
+        fn name(&self) -> &str {
+            "DummyTCPAnalyzer"
+        }
+
+        fn limit(&self) -> u32 {
+            1000
+        }
+    }
+
+    impl TCPAnalyzer for DummyTCPAnalyzer {
+        fn new_tcp(&self, _info: TCPInfo) -> Box<dyn TCPStream> {
+            Box::new(DummyTCPStream)
+        }
+    }
+
+    struct DummyUDPStream;
+
+    impl UDPStream for DummyUDPStream {
+        fn feed(&mut self, _rev: bool, _data: &[u8]) -> (Option<PropUpdate>, bool) {
+            (None, true)
+        }
+
+        fn close(&mut self, _limited: bool) -> Option<PropUpdate> {
+            None
+        }
+    }
+
+    struct DummyUDPAnalyzer;
+
+    impl Analyzer for DummyUDPAnalyzer {
+        fn name(&self) -> &str {
+            "DummyUDPAnalyzer"
+        }
+
+        fn limit(&self) -> u32 {
+            1000
+        }
+    }
+
+    impl UDPAnalyzer for DummyUDPAnalyzer {
+        fn new_udp(&self, _info: UDPInfo) -> Box<dyn UDPStream> {
+            Box::new(DummyUDPStream)
+        }
+    }
+
+    #[test]
+    fn test_analyzer_name() {
+        let analyzer = DummyAnalyzer;
+        assert_eq!(analyzer.name(), "DummyAnalyzer");
+    }
+
+    #[test]
+    fn test_analyzer_limit() {
+        let analyzer = DummyAnalyzer;
+        assert_eq!(analyzer.limit(), 1000);
+    }
+
+    #[test]
+    fn test_tcp_info() {
+        let info = TCPInfo {
+            src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            src_port: 12345,
+            dst_port: 80,
+        };
+        assert_eq!(info.src_ip, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(
+            info.dst_ip,
+            IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1))
+        );
+        assert_eq!(info.src_port, 12345);
+        assert_eq!(info.dst_port, 80);
+    }
+
+    #[test]
+    fn test_udp_info() {
+        let info = UDPInfo {
+            src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            src_port: 12345,
+            dst_port: 80,
+        };
+        assert_eq!(info.src_ip, IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(
+            info.dst_ip,
+            IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1))
+        );
+        assert_eq!(info.src_port, 12345);
+        assert_eq!(info.dst_port, 80);
+    }
+
+    #[test]
+    fn test_prop_update() {
+        let mut map = PropMap::new();
+        map.insert("key".to_string(), Rc::new("value".to_string()));
+        let update = PropUpdate {
+            update_type: PropUpdateType::Merge,
+            map: map.clone(),
+        };
+        assert_eq!(update.update_type, PropUpdateType::Merge);
+        assert_eq!(
+            update
+                .map
+                .get("key")
+                .unwrap()
+                .downcast_ref::<String>()
+                .unwrap(),
+            "value"
+        );
+    }
+
+    #[test]
+    fn test_tcp_analyzer() {
+        let analyzer = DummyTCPAnalyzer;
+        let info = TCPInfo {
+            src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            src_port: 12345,
+            dst_port: 80,
+        };
+        let mut stream = analyzer.new_tcp(info);
+        let (update, done) = stream.feed(false, true, false, 0, &[]);
+        assert!(update.is_none());
+        assert!(done);
+        let close_update = stream.close(false);
+        assert!(close_update.is_none());
+    }
+
+    #[test]
+    fn test_udp_analyzer() {
+        let analyzer = DummyUDPAnalyzer;
+        let info = UDPInfo {
+            src_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            dst_ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            src_port: 12345,
+            dst_port: 80,
+        };
+        let mut stream = analyzer.new_udp(info);
+        let (update, done) = stream.feed(false, &[]);
+        assert!(update.is_none());
+        assert!(done);
+        let close_update = stream.close(false);
+        assert!(close_update.is_none());
+    }
 }
