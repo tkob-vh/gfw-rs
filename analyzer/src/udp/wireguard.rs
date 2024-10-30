@@ -10,7 +10,7 @@
 //! - `WireGuardIdx`: A structure to store the index information of WireGuard packets.
 
 use crate::*;
-use byteorder::{self, BigEndian, ByteOrder};
+use byteorder::{self, ByteOrder, LittleEndian};
 use bytes::BytesMut;
 use ringbuf::{
     traits::{Consumer, Producer},
@@ -130,7 +130,7 @@ impl WireGuardUDPStream {
         }
 
         let mut prop_key = String::new();
-        let mut prop_value: Option<PropMap> = None;
+        let prop_value: Option<PropMap>;
 
         // Get the message_type
         let message_type = data.first().unwrap().to_owned();
@@ -153,7 +153,9 @@ impl WireGuardUDPStream {
                 prop_key = "pakcet_cookie_reply".to_string();
                 prop_value = self.parse_wireguard_packet_cookie_reply(rev, data);
             }
-            _ => {}
+            _ => {
+                prop_value = None;
+            }
         };
 
         // Return the prop map.
@@ -197,7 +199,7 @@ impl WireGuardUDPStream {
         let mut prop_map = PropMap::new();
 
         // Get the sender_idx field.
-        let sender_idx = BigEndian::read_u32(data.get(4..8).unwrap());
+        let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
         prop_map.insert("sender_index".to_string(), Rc::new(sender_idx));
@@ -230,7 +232,7 @@ impl WireGuardUDPStream {
         let mut prop_map = PropMap::new();
 
         // Get the sender_idx field.
-        let sender_idx = BigEndian::read_u32(data.get(4..8).unwrap());
+        let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
         prop_map.insert("sender_index".to_string(), Rc::new(sender_idx));
@@ -239,7 +241,7 @@ impl WireGuardUDPStream {
         self.put_sender_idx(rev, sender_idx);
 
         // Get the receiver_idx field.
-        let receiver_idx = BigEndian::read_u32(data.get(8..12).unwrap());
+        let receiver_idx = LittleEndian::read_u32(data.get(8..12).unwrap());
 
         // String to sender_idx.
         prop_map.insert("receiver_index".to_string(), Rc::new(receiver_idx));
@@ -275,7 +277,7 @@ impl WireGuardUDPStream {
 
         let mut prop_map = PropMap::new();
 
-        let receiver_idx = BigEndian::read_u32(data.get(4..8).unwrap());
+        let receiver_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
         prop_map.insert("receiver_index".to_string(), Rc::new(receiver_idx));
         prop_map.insert(
             "receiver_index_matched".to_string(),
@@ -286,7 +288,7 @@ impl WireGuardUDPStream {
         // It also functions to avoid replay attacks.
         prop_map.insert(
             "counter".to_string(),
-            Rc::new(BigEndian::read_u64(data.get(8..16).unwrap())),
+            Rc::new(LittleEndian::read_u64(data.get(8..16).unwrap())),
         );
 
         Some(prop_map)
@@ -312,7 +314,7 @@ impl WireGuardUDPStream {
 
         let mut prop_map = PropMap::new();
 
-        let receiver_idx = BigEndian::read_u32(data.get(4..8).unwrap());
+        let receiver_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         prop_map.insert("receiver_index".to_string(), Rc::new(receiver_idx));
 
@@ -406,5 +408,192 @@ impl UDPStream for WireGuardUDPStream {
     #[allow(unused_variables)]
     fn close(&mut self, limited: bool) -> Option<crate::PropUpdate> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BytesMut;
+    use hex;
+    use ringbuf::traits::Observer;
+    use std::num::NonZero;
+
+    #[test]
+    fn test_wireguard_analyzer_name() {
+        let analyzer = WireGuardAnalyzer {};
+        assert_eq!(analyzer.name(), "wireguard");
+    }
+
+    #[test]
+    fn test_wireguard_analyzer_limit() {
+        let analyzer = WireGuardAnalyzer {};
+        assert_eq!(analyzer.limit(), 0);
+    }
+
+    #[test]
+    fn test_wireguard_udp_stream_new() {
+        let stream = WireGuardUDPStream::new();
+        assert_eq!(stream.invalid_count, 0);
+        assert_eq!(
+            stream.remembered_indexes.capacity(),
+            NonZero::new(WIREGUARD_REMEMBERED_INDEX_COUNT as usize).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_parse_wireguard_packet_invalid_length() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = BytesMut::from(&[0u8, 0, 0][..]);
+        assert!(stream.parse_wireguard_packet(false, &data).is_none());
+    }
+
+    #[test]
+    fn test_parse_wireguard_packet_invalid_reserved() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = BytesMut::from(&[1u8, 1, 0, 0][..]);
+        assert!(stream.parse_wireguard_packet(false, &data).is_none());
+    }
+
+    #[test]
+    fn test_parse_wireguard_handshake_initiation() {
+        let mut stream = WireGuardUDPStream::new();
+
+        let data = BytesMut::from(
+            hex::decode(concat!(
+                "01000000029c03c1f30ceb67148",
+                "dd27c78d52d0196b6b78b71542986f563ac898879353f022f174770c5b3d433",
+                "cfb49fd3311688284ce67ec72111e655129fc5f6bed2e0a44b8d28c222c6e14",
+                "79a0833c7a1f6417b733c1ef049fab5e451aff561ea428c2116f7d1023ccdac",
+                "2b2a00ecbe0273c9f84b1c695032084b58e7d2ff9fcf19fd00000000000000000000000000000000"
+            ))
+            .unwrap()
+            .as_slice(),
+        );
+        let prop_map = stream
+            .parse_wireguard_handshake_initiation(false, &data)
+            .unwrap();
+        assert_eq!(
+            *prop_map
+                .get("sender_index")
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap(),
+            0xc1039c02
+        );
+    }
+
+    #[test]
+    fn test_parse_wireguard_handshake_response() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = BytesMut::from(
+            hex::decode(concat!(
+                "0200000001fae3dc029c03c1394",
+                "ce1067faccdff74d71ddde6450ccedb94839008a7a2c0cdb0b4abe080565b96",
+                "d16752c32e60baabfb5413fba24276beae31ece918c01700e5dfe66ca3c7b9",
+                "00000000000000000000000000000000"
+            ))
+            .unwrap()
+            .as_slice(),
+        );
+        let prop_map = stream
+            .parse_wireguard_handshake_response(false, &data)
+            .unwrap();
+        assert_eq!(
+            *prop_map
+                .get("sender_index")
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap(),
+            0xdce3fa01
+        );
+        assert_eq!(
+            *prop_map
+                .get("receiver_index")
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap(),
+            0xc1039c02
+        );
+    }
+
+    #[test]
+    fn test_parse_wireguard_packet_data() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = BytesMut::from(
+            hex::decode(concat!(
+                "0400000006f47dab00000000000",
+                "00000a4ebc12ee3f990da18033a0789c04e2700f6f5c271d42ac4b4d6262e66",
+                "6549b445a7436e829bffb6ac65f05648bc0c391fe7c58848743761271649401",
+                "88f03dba67af8388eaab76c593628bf9dc7be03346d912e916dad862545454",
+                "701364f2d2486d7ced4c8642ce547ddb26ef6a46b"
+            ))
+            .unwrap()
+            .as_slice(),
+        );
+        let prop_map = stream.parse_wireguard_packet_data(false, &data).unwrap();
+        assert_eq!(
+            *prop_map
+                .get("receiver_index")
+                .unwrap()
+                .downcast_ref::<u32>()
+                .unwrap(),
+            0xab7df406
+        );
+    }
+
+    //#[test]
+    //fn test_parse_wireguard_packet_cookie_reply() {
+    //    let mut stream = WireGuardUDPStream::new();
+    //    let data = BytesMut::from();
+    //    let prop_map = stream
+    //        .parse_wireguard_packet_cookie_reply(false, &data)
+    //        .unwrap();
+    //    assert_eq!(
+    //        *prop_map
+    //            .get("receiver_index")
+    //            .unwrap()
+    //            .downcast_ref::<u32>()
+    //            .unwrap(),
+    //        1
+    //    );
+    //}
+
+    #[test]
+    fn test_put_sender_idx() {
+        let mut stream = WireGuardUDPStream::new();
+        stream.put_sender_idx(false, 1);
+        assert_eq!(stream.remembered_indexes.occupied_len(), 1);
+    }
+
+    #[test]
+    fn test_match_receiver_idx() {
+        let mut stream = WireGuardUDPStream::new();
+        stream.put_sender_idx(false, 1);
+        assert!(stream.match_receiver_idx(true, 1));
+    }
+    //
+    #[test]
+    fn test_feed_invalid_packet() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = &[0u8, 0, 0, 0][..];
+        let (prop_update, _) = stream.feed(false, data);
+        assert!(prop_update.is_none());
+    }
+
+    #[test]
+    fn test_feed_valid_packet() {
+        let mut stream = WireGuardUDPStream::new();
+        let data = hex::decode(concat!(
+            "01000000029c03c1f30ceb67148",
+            "dd27c78d52d0196b6b78b71542986f563ac898879353f022f174770c5b3d433",
+            "cfb49fd3311688284ce67ec72111e655129fc5f6bed2e0a44b8d28c222c6e14",
+            "79a0833c7a1f6417b733c1ef049fab5e451aff561ea428c2116f7d1023ccdac",
+            "2b2a00ecbe0273c9f84b1c695032084b58e7d2ff9fcf19fd00000000000000000000000000000000"
+        ))
+        .expect("Invalid hex string");
+        let (prop_update, is_invalid) = stream.feed(false, &data);
+        assert!(prop_update.is_some());
+        assert!(!is_invalid);
     }
 }
