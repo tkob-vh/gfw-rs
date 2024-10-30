@@ -5,12 +5,17 @@
 /// Represents the possible actions that can be taken by the linear state machine.
 #[derive(Debug, PartialEq)]
 pub enum LSMAction {
+    /// Pause the lsm (waiting for more data)
     Pause,
+    /// Go to the next step
     Next,
+    /// Reset to step 1
     Reset,
+    /// Cancel the processing
     Cancel,
 }
 
+/// The type of the funtciotns in the step.
 pub type StepType<T> = Box<dyn Fn(&mut T) -> LSMAction>;
 
 /// A linear state machine that executes a series of steps in order.
