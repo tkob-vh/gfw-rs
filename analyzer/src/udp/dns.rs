@@ -14,9 +14,7 @@
 //! - `parse_dns_message`: Parses a DNS message and returns a property map.
 //! - `dns_rr_to_prop_map`: Converts a DNS response record to a property map.
 
-use crate::analyzer::{self, PropUpdateType, TCPStream, UDPAnalyzer, UDPStream};
-use crate::analyzer::{Analyzer, TCPAnalyzer};
-use crate::utils;
+use crate::*;
 use bytes::{Buf, BytesMut};
 use pnet::packet::dns::{self};
 use std::cell::RefCell;
@@ -49,7 +47,7 @@ impl Analyzer for DNSAnalyzer {
 impl UDPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
-    fn new_udp(&self, info: analyzer::UDPInfo) -> Box<dyn analyzer::UDPStream> {
+    fn new_udp(&self, info: UDPInfo) -> Box<dyn UDPStream> {
         Box::new(DNSUDPStream::new())
     }
 }
@@ -57,7 +55,7 @@ impl UDPAnalyzer for DNSAnalyzer {
 impl TCPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
-    fn new_tcp(&self, info: analyzer::TCPInfo) -> Box<dyn analyzer::TCPStream> {
+    fn new_tcp(&self, info: TCPInfo) -> Box<dyn TCPStream> {
         Box::new(DNSTCPStream::new())
     }
 }
@@ -78,7 +76,7 @@ impl DNSUDPStream {
 impl UDPStream for DNSUDPStream {
     /// The argument `rev` is not used here.
     #[allow(unused_variables)]
-    fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<analyzer::PropUpdate>, bool) {
+    fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<PropUpdate>, bool) {
         // Parse the DNS message first.
         let prop_map = match parse_dns_message(&BytesMut::from(data)) {
             Some(map) => map,
@@ -92,7 +90,7 @@ impl UDPStream for DNSUDPStream {
         self.invalid_count = 0;
 
         (
-            Some(analyzer::PropUpdate {
+            Some(PropUpdate {
                 update_type: PropUpdateType::Replace,
                 map: prop_map,
             }),
@@ -102,7 +100,7 @@ impl UDPStream for DNSUDPStream {
 
     /// The argument `limited` is not used here.
     #[allow(unused_variables)]
-    fn close(&mut self, limited: bool) -> Option<analyzer::PropUpdate> {
+    fn close(&mut self, limited: bool) -> Option<PropUpdate> {
         None
     }
 }
@@ -112,7 +110,7 @@ pub struct DNSTCPStream {
     /// The bytebuffer of the request message.
     req_buf: BytesMut,
     /// The hashmap of the properties in the message.
-    req_map: analyzer::PropMap,
+    req_map: PropMap,
     /// If the prop_map has been updated.
     req_updated: bool,
     /// The linear state machine which process the message with the methods in field `steps`.
@@ -121,7 +119,7 @@ pub struct DNSTCPStream {
     req_done: bool,
 
     resp_buf: BytesMut,
-    resp_map: analyzer::PropMap,
+    resp_map: PropMap,
     resp_updated: bool,
     resp_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
     resp_done: bool,
@@ -137,7 +135,7 @@ impl DNSTCPStream {
     fn new() -> Self {
         Self {
             req_buf: BytesMut::new(),
-            req_map: analyzer::PropMap::new(),
+            req_map: PropMap::new(),
             req_updated: false,
             req_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_req_message_length()),
@@ -146,7 +144,7 @@ impl DNSTCPStream {
             req_done: false,
 
             resp_buf: BytesMut::new(),
-            resp_map: analyzer::PropMap::new(),
+            resp_map: PropMap::new(),
             resp_updated: false,
             resp_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_resp_message_length()),
@@ -268,7 +266,7 @@ impl TCPStream for DNSTCPStream {
         end: bool,
         skip: usize,
         data: &[u8],
-    ) -> (Option<analyzer::PropUpdate>, bool) {
+    ) -> (Option<PropUpdate>, bool) {
         if skip != 0 {
             return (None, true);
         }
@@ -277,7 +275,7 @@ impl TCPStream for DNSTCPStream {
             return (None, false);
         }
 
-        let mut update: Option<analyzer::PropUpdate> = None;
+        let mut update: Option<PropUpdate> = None;
         let cancelled: bool;
 
         if rev {
@@ -294,8 +292,8 @@ impl TCPStream for DNSTCPStream {
 
             // If the prop_map has been updated, consume it.
             if self.resp_updated {
-                update = Some(analyzer::PropUpdate {
-                    update_type: analyzer::PropUpdateType::Replace,
+                update = Some(PropUpdate {
+                    update_type: PropUpdateType::Replace,
                     map: self.resp_map.clone(),
                 });
                 self.resp_updated = false;
@@ -310,8 +308,8 @@ impl TCPStream for DNSTCPStream {
             (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
 
             if self.req_updated {
-                update = Some(analyzer::PropUpdate {
-                    update_type: analyzer::PropUpdateType::Replace,
+                update = Some(PropUpdate {
+                    update_type: PropUpdateType::Replace,
                     map: self.req_map.clone(),
                 });
                 self.req_updated = false;
@@ -323,7 +321,7 @@ impl TCPStream for DNSTCPStream {
 
     /// The argument `limited` is not used here.
     #[allow(unused_variables)]
-    fn close(&mut self, limited: bool) -> Option<analyzer::PropUpdate> {
+    fn close(&mut self, limited: bool) -> Option<PropUpdate> {
         self.req_buf.clear();
         self.resp_buf.clear();
 
@@ -345,7 +343,7 @@ impl TCPStream for DNSTCPStream {
 /// # Returns
 ///
 /// The final parsed DNS PropMap.
-fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
+fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
     // Construct dns packet from the bytebuffer.
     let dns_packet = match dns::DnsPacket::new(msg) {
         Some(packet) => packet,
@@ -355,7 +353,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
         }
     };
 
-    let mut prop_map = analyzer::PropMap::new();
+    let mut prop_map = PropMap::new();
 
     // Extract the properties from the dns packet and store them in the hashmap.
 
@@ -378,8 +376,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
 
     // Process the queries.
     if dns_packet.get_query_count() > 0 {
-        let mut prop_map_questions =
-            vec![analyzer::PropMap::new(); dns_packet.get_query_count() as usize];
+        let mut prop_map_questions = vec![PropMap::new(); dns_packet.get_query_count() as usize];
 
         for (i, q) in dns_packet.get_queries_iter().enumerate() {
             prop_map_questions[i].insert(
@@ -395,8 +392,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
 
     // Process the resourse records.
     if dns_packet.get_response_count() > 0 {
-        let mut prop_map_answers =
-            vec![analyzer::PropMap::new(); dns_packet.get_response_count() as usize];
+        let mut prop_map_answers = vec![PropMap::new(); dns_packet.get_response_count() as usize];
 
         for (i, rr) in dns_packet.get_responses_iter().enumerate() {
             prop_map_answers[i] = dns_rr_to_prop_map(&rr);
@@ -407,7 +403,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
 
     if dns_packet.get_authority_rr_count() > 0 {
         let mut prop_map_authorities =
-            vec![analyzer::PropMap::new(); dns_packet.get_authority_rr_count() as usize];
+            vec![PropMap::new(); dns_packet.get_authority_rr_count() as usize];
 
         for (i, rr) in dns_packet.get_authorities_iter().enumerate() {
             prop_map_authorities[i] = dns_rr_to_prop_map(&rr);
@@ -418,7 +414,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
 
     if dns_packet.get_additional_rr_count() > 0 {
         let mut prop_map_additionals =
-            vec![analyzer::PropMap::new(); dns_packet.get_additional_rr_count() as usize];
+            vec![PropMap::new(); dns_packet.get_additional_rr_count() as usize];
 
         for (i, rr) in dns_packet.get_additional_iter().enumerate() {
             prop_map_additionals[i] = dns_rr_to_prop_map(&rr);
@@ -439,8 +435,8 @@ fn parse_dns_message(msg: &BytesMut) -> Option<analyzer::PropMap> {
 /// # Returns
 ///
 /// A PropMap
-fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> analyzer::PropMap {
-    let mut prop_map = analyzer::PropMap::new();
+fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
+    let mut prop_map = PropMap::new();
 
     prop_map.insert("name".to_string(), Rc::new(rr.get_name_tag().to_string()));
     prop_map.insert("type".to_string(), Rc::new(rr.get_rtype()));

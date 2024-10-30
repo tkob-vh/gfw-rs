@@ -9,7 +9,7 @@
 //! - `WireGuardUDPStream`: Implements the `UDPStream` trait for handling the stream of WireGuard packets.
 //! - `WireGuardIdx`: A structure to store the index information of WireGuard packets.
 
-use crate::analyzer::{self, Analyzer, UDPAnalyzer, UDPStream};
+use crate::*;
 use byteorder::{self, BigEndian, ByteOrder};
 use bytes::BytesMut;
 use ringbuf::{
@@ -74,7 +74,7 @@ impl Analyzer for WireGuardAnalyzer {
 impl UDPAnalyzer for WireGuardAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
-    fn new_udp(&self, info: crate::analyzer::UDPInfo) -> Box<dyn UDPStream> {
+    fn new_udp(&self, info: crate::UDPInfo) -> Box<dyn UDPStream> {
         Box::new(WireGuardUDPStream::new())
     }
 }
@@ -118,7 +118,7 @@ impl WireGuardUDPStream {
     ///
     /// # Returns
     /// The properties map or None
-    fn parse_wireguard_packet(&mut self, rev: bool, data: &BytesMut) -> Option<analyzer::PropMap> {
+    fn parse_wireguard_packet(&mut self, rev: bool, data: &BytesMut) -> Option<PropMap> {
         // Check the first four bytes (1 byte for type and 3 bytes for reserved).
         if data.len() < 4 {
             return None;
@@ -130,7 +130,7 @@ impl WireGuardUDPStream {
         }
 
         let mut prop_key = String::new();
-        let mut prop_value: Option<analyzer::PropMap> = None;
+        let mut prop_value: Option<PropMap> = None;
 
         // Get the message_type
         let message_type = data.first().unwrap().to_owned();
@@ -160,7 +160,7 @@ impl WireGuardUDPStream {
         match prop_value {
             None => None,
             Some(prop_value) => {
-                let mut prop_map = analyzer::PropMap::new();
+                let mut prop_map = PropMap::new();
 
                 // String to Message type.
                 prop_map.insert(
@@ -188,13 +188,13 @@ impl WireGuardUDPStream {
         &mut self,
         rev: bool,
         data: &BytesMut,
-    ) -> Option<analyzer::PropMap> {
+    ) -> Option<PropMap> {
         // Check the message length
         if data.len() != WIREGUARD_SIZE_HANDSHAKE_INITIATION as usize {
             return None;
         }
 
-        let mut prop_map = analyzer::PropMap::new();
+        let mut prop_map = PropMap::new();
 
         // Get the sender_idx field.
         let sender_idx = BigEndian::read_u32(data.get(4..8).unwrap());
@@ -221,13 +221,13 @@ impl WireGuardUDPStream {
         &mut self,
         rev: bool,
         data: &BytesMut,
-    ) -> Option<analyzer::PropMap> {
+    ) -> Option<PropMap> {
         // Check the message length
         if data.len() != WIREGUARD_SIZE_HANDSHAKE_RESPONSE as usize {
             return None;
         }
 
-        let mut prop_map = analyzer::PropMap::new();
+        let mut prop_map = PropMap::new();
 
         // Get the sender_idx field.
         let sender_idx = BigEndian::read_u32(data.get(4..8).unwrap());
@@ -262,11 +262,7 @@ impl WireGuardUDPStream {
     /// # Returns
     ///
     /// The properties map or None
-    fn parse_wireguard_packet_data(
-        &mut self,
-        rev: bool,
-        data: &BytesMut,
-    ) -> Option<analyzer::PropMap> {
+    fn parse_wireguard_packet_data(&mut self, rev: bool, data: &BytesMut) -> Option<PropMap> {
         // Check the message length
         if data.len() < WIREGUARD_MIN_SIZE_PACKET_DATA as usize {
             return None;
@@ -277,7 +273,7 @@ impl WireGuardUDPStream {
             return None;
         }
 
-        let mut prop_map = analyzer::PropMap::new();
+        let mut prop_map = PropMap::new();
 
         let receiver_idx = BigEndian::read_u32(data.get(4..8).unwrap());
         prop_map.insert("receiver_index".to_string(), Rc::new(receiver_idx));
@@ -309,12 +305,12 @@ impl WireGuardUDPStream {
         &mut self,
         rev: bool,
         data: &BytesMut,
-    ) -> Option<analyzer::PropMap> {
+    ) -> Option<PropMap> {
         if data.len() != WIREGUARD_SIZE_PACKET_COOKIE_REPLY as usize {
             return None;
         }
 
-        let mut prop_map = analyzer::PropMap::new();
+        let mut prop_map = PropMap::new();
 
         let receiver_idx = BigEndian::read_u32(data.get(4..8).unwrap());
 
@@ -371,7 +367,7 @@ impl WireGuardUDPStream {
 }
 
 impl UDPStream for WireGuardUDPStream {
-    fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<crate::analyzer::PropUpdate>, bool) {
+    fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<crate::PropUpdate>, bool) {
         let prop_map = match self.parse_wireguard_packet(rev, &BytesMut::from(data)) {
             Some(map) => map,
             None => {
@@ -392,14 +388,14 @@ impl UDPStream for WireGuardUDPStream {
             .expect("Expected a u8 value")
             .to_owned();
 
-        let mut prop_update_type = analyzer::PropUpdateType::Merge;
+        let mut prop_update_type = PropUpdateType::Merge;
 
         if message_type == WIREGUARD_TYPE_HANDSHAKE_INITIATION {
-            prop_update_type = analyzer::PropUpdateType::Replace;
+            prop_update_type = PropUpdateType::Replace;
         }
 
         (
-            Some(analyzer::PropUpdate {
+            Some(PropUpdate {
                 update_type: prop_update_type,
                 map: prop_map,
             }),
@@ -408,7 +404,7 @@ impl UDPStream for WireGuardUDPStream {
     }
 
     #[allow(unused_variables)]
-    fn close(&mut self, limited: bool) -> Option<crate::analyzer::PropUpdate> {
+    fn close(&mut self, limited: bool) -> Option<crate::PropUpdate> {
         None
     }
 }
