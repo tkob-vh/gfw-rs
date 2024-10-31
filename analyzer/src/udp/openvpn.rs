@@ -78,7 +78,7 @@ impl TCPAnalyzer for OpenVPNAnalyzer {
 /// This struct contains the opcode and keyid of an OpenVPN packet.
 struct OpenVPNPkt {
     /// 16 bits, TCP protocol only
-    //pkt_len: u16,
+    //pkt_len: u16, // not used
     /// 5 bits
     opcode: u8,
     /// 3 bits, not used
@@ -316,7 +316,7 @@ impl UDPStream for OpenVPNUDPStream {
         }
 
         let mut update: Option<PropUpdate> = None;
-        let mut cancelled = false;
+        let cancelled: bool;
         self.cur_pkt = BytesMut::from(data);
 
         if rev {
@@ -334,24 +334,24 @@ impl UDPStream for OpenVPNUDPStream {
                 });
 
                 self.resp_updated = false;
-            } else {
+            }
+        } else {
+            self.req_updated = false;
+
+            let lsm = self.req_lsm.clone();
+            (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
+
+            if self.req_updated {
+                let mut prop_map = PropMap::new();
+                prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
+                prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
+
+                update = Some(PropUpdate {
+                    update_type: PropUpdateType::Replace,
+                    map: prop_map,
+                });
+
                 self.req_updated = false;
-
-                let lsm = self.req_lsm.clone();
-                (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
-
-                if self.req_updated {
-                    let mut prop_map = PropMap::new();
-                    prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
-                    prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
-
-                    update = Some(PropUpdate {
-                        update_type: PropUpdateType::Replace,
-                        map: prop_map,
-                    });
-
-                    self.req_updated = false;
-                }
             }
         }
 
@@ -396,6 +396,11 @@ struct OpenVPNTCPStream {
 }
 
 impl OpenVPNTCPStream {
+    /// Creates a new `OpenVPNUDPStream`.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `OpenVPNUDPStream`.
     fn new() -> Self {
         Self {
             req_updated: false,
@@ -424,6 +429,17 @@ impl OpenVPNTCPStream {
         }
     }
 
+    /// Parses the current packet in the buffer.
+    ///
+    /// It is used to parse both the request message and the response message.
+    ///
+    /// # Arguments
+    ///
+    /// - `rev`: Whether it's a request or response.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing an optional `OpenVPNPkt` and an `LSMAction`.
     fn parse_pkt(&mut self, rev: bool) -> (Option<OpenVPNPkt>, utils::lsm::LSMAction) {
         let buffer = match rev {
             true => &mut self.resp_buf,
@@ -440,7 +456,8 @@ impl OpenVPNTCPStream {
             return (None, utils::lsm::LSMAction::Cancel);
         }
 
-        let pkt_op = match buffer.get(3) {
+        // Get the opcode
+        let pkt_op = match buffer.get(2) {
             Some(bytes) => *bytes,
             None => return (None, utils::lsm::LSMAction::Pause),
         };
@@ -469,7 +486,7 @@ impl OpenVPNTCPStream {
 
 impl OpenVPNStream for OpenVPNTCPStream {
     fn parse_ctl_hard_reset_client(&mut self) -> utils::lsm::LSMAction {
-        let (pkt, action) = self.parse_pkt(true);
+        let (pkt, action) = self.parse_pkt(false);
         if action != utils::lsm::LSMAction::Next {
             return action;
         }
@@ -494,7 +511,7 @@ impl OpenVPNStream for OpenVPNTCPStream {
             return utils::lsm::LSMAction::Cancel;
         }
 
-        let (pkt, action) = self.parse_pkt(false);
+        let (pkt, action) = self.parse_pkt(true);
         if action != utils::lsm::LSMAction::Next {
             return action;
         }
@@ -511,7 +528,7 @@ impl OpenVPNStream for OpenVPNTCPStream {
         utils::lsm::LSMAction::Next
     }
     fn parse_req(&mut self) -> utils::lsm::LSMAction {
-        let (pkt, action) = self.parse_pkt(true);
+        let (pkt, action) = self.parse_pkt(false);
 
         if action != utils::lsm::LSMAction::Next {
             return action;
@@ -535,7 +552,7 @@ impl OpenVPNStream for OpenVPNTCPStream {
         utils::lsm::LSMAction::Pause
     }
     fn parse_resp(&mut self) -> utils::lsm::LSMAction {
-        let (pkt, action) = self.parse_pkt(false);
+        let (pkt, action) = self.parse_pkt(true);
 
         if action != utils::lsm::LSMAction::Next {
             return action;
@@ -602,9 +619,9 @@ impl TCPStream for OpenVPNTCPStream {
             self.req_buf.extend_from_slice(data);
             self.req_updated = false;
             let lsm = self.req_lsm.clone();
-            (cancelled, self.req_updated) = (*lsm).borrow_mut().run(self);
+            (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
 
-            if self.resp_updated {
+            if self.req_updated {
                 let mut prop_map = PropMap::new();
                 prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
                 prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
@@ -657,4 +674,181 @@ fn openvpn_check_for_valid_opcode(opcode: u8) -> bool {
             | OPENVPN_CONTROL_HARD_RESET_CLIENT_V3
             | OPENVPN_CONTROL_WKC_V1
     )
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use bytes::BytesMut;
+    use utils::lsm::LSMAction;
+
+    #[test]
+    fn test_openvpn_analyzer_name() {
+        let analyzer = OpenVPNAnalyzer {};
+        assert_eq!(analyzer.name(), "openvpn");
+    }
+
+    #[test]
+    fn test_openvpn_analyzer_limit() {
+        let analyzer = OpenVPNAnalyzer {};
+        assert_eq!(analyzer.limit(), 0);
+    }
+
+    #[test]
+    fn test_openvpn_udp_stream_new() {
+        let stream = OpenVPNUDPStream::new();
+        assert_eq!(stream.rx_pkt_cnt, 0);
+        assert_eq!(stream.tx_pkt_cnt, 0);
+        assert_eq!(stream.pkt_limit, OPENVPN_UDP_PKT_DEFAULT_LIMIT);
+    }
+
+    #[test]
+    fn test_openvpn_udp_stream_parse_pkt() {
+        let mut stream = OpenVPNUDPStream::new();
+        stream.cur_pkt = BytesMut::from(hex::decode(concat!("20573714a917f36048309c348cccf0903",
+        "9f1bba5dd530ceb3c426623880000000550ff262b00000000024886f70d0101050500307a310b30090603550406",
+        "13024154310b3009060355040813024f45310d300b0603550407130450524f33310d300b060355040a130450524",
+        "f33310d300b060355040b130450524f33310d300b0603550403130450524f33310d30")).unwrap().as_slice());
+
+        let (pkt, action) = stream.parse_pkt();
+        assert_eq!(action, LSMAction::Next);
+        assert!(pkt.is_some());
+        assert_eq!(pkt.unwrap().opcode, 4);
+    }
+
+    #[test]
+    fn test_openvpn_tcp_stream_new() {
+        let stream = OpenVPNTCPStream::new();
+        assert_eq!(stream.rx_pkt_cnt, 0);
+        assert_eq!(stream.tx_pkt_cnt, 0);
+        assert_eq!(stream.pkt_limit, OPENVPN_TCP_PKT_DEFAULT_LIMIT);
+    }
+
+    #[test]
+    fn test_openvpn_tcp_stream_parse_pkt() {
+        let mut stream = OpenVPNTCPStream::new();
+        stream.req_buf = BytesMut::from(hex::decode(concat!("008e2057c9b6c4689e6ad488771fd7546",
+        "877be317f88ee75e7fd0d3f4d5a250000004850ff2102000000002832a4c975d9b09bfbc9ec7cb27cd6d803b6a2",
+        "c46a357b0ab1fd1af2c7bc2efaf727d0e94cc95accf3d6e1735003f873450d895afcdf0bd971ac77ba60a9b8f0f",
+        "d7fe4f1d8f184778aede41a03f30d6d8a12f72b38a90f8b9775fc4bd7d94a60d02136c181")).unwrap().as_slice());
+
+        let (pkt, action) = stream.parse_pkt(false);
+        assert_eq!(action, LSMAction::Next);
+        assert!(pkt.is_some());
+        assert_eq!(pkt.unwrap().opcode, 4);
+    }
+
+    #[test]
+    fn test_openvpn_udp_stream_feed() {
+        let mut stream = OpenVPNUDPStream::new();
+
+        // OPENVPN_CONTROL_HARD_RESET_CLIENT_V2
+        let mut data = hex::decode(concat!(
+            "38813814621d67462dde86734d2cbff151b2b1231b61e",
+            "42308a272818e0000000150ff262c0000000000"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(false, &data);
+
+        assert!(update.is_none());
+        assert!(!cancelled);
+
+        // OPENVPN_CONTROL_HARD_RESET_SERVER_V2
+        data = hex::decode(concat!(
+            "40573714a917f36048885887cdb6dd77785d00d15edbbe9aa6203a45570000000150ff262b0100000000813",
+            "814621d67462d00000000"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(true, &data);
+
+        assert!(update.is_none());
+        assert!(!cancelled);
+
+        // OPENVPN_CONTROL_V1
+        data = hex::decode(concat!("20573714a917f36048309c348cccf0903",
+        "9f1bba5dd530ceb3c426623880000000550ff262b00000000024886f70d0101050500307a310b30090603550406",
+        "13024154310b3009060355040813024f45310d300b0603550407130450524f33310d300b060355040a130450524",
+        "f33310d300b060355040b130450524f33310d300b0603550403130450524f33310d30")).unwrap();
+
+        let (update, cancelled) = stream.feed(false, &data);
+
+        assert!(update.is_some());
+        assert!(!cancelled);
+
+        // OPENVPN_CONTROL_V1
+        data = hex::decode(concat!("20573714a917f36048309c348cccf0903",
+        "9f1bba5dd530ceb3c426623880000000550ff262b00000000024886f70d0101050500307a310b30090603550406",
+        "13024154310b3009060355040813024f45310d300b0603550407130450524f33310d300b060355040a130450524",
+        "f33310d300b060355040b130450524f33310d300b0603550403130450524f33310d30")).unwrap();
+
+        let (update, cancelled) = stream.feed(true, &data);
+
+        assert!(update.is_some());
+
+        if let Some(update) = update {
+            for (key, value) in update.map.iter() {
+                println!("{}: {:?}", key, value);
+            }
+        }
+
+        assert!(!cancelled);
+    }
+
+    #[test]
+    fn test_openvpn_tcp_stream_feed() {
+        let mut stream = OpenVPNTCPStream::new();
+
+        // OPENVPN_CONTROL_HARD_RESET_CLIENT_V2
+        let mut data = hex::decode(concat!(
+            "002a3828e1328a7185e6ca779cda2d2230e4755040a7",
+            "8df956f0268c51fb710000000150ff20fd0000000000"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(false, true, false, 0, &data);
+
+        assert!(update.is_none());
+        assert!(!cancelled);
+
+        // OPENVPN_CONTROL_HARD_RESET_SERVER_V2
+        data = hex::decode(concat!(
+            "003640593c3c23232bb90a81031ac1c7fa0bc64c2e29e4a732947a6084f5aa0000000150ff20fc01000000",
+            "0028e1328a7185e6ca00000000"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(true, true, false, 0, &data);
+
+        assert!(update.is_none());
+        assert!(!cancelled);
+
+        // OPENVPN_ACK_V1
+        data = hex::decode(concat!(
+            "00322828e1328a7185e6ca9deee33203672b1962bbae8eda97f7d57d1bae750000000250ff20fd01000000",
+            "00593c3c23232bb90a"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(false, true, false, 0, &data);
+
+        assert!(update.is_some());
+        assert!(!cancelled);
+
+        // OPENVPN_ACK_V1
+        data = hex::decode(concat!(
+            "003228593c3c23232bb90a6a1ac34d1e4b24fbb0149a6deaa049667bf116520000000250ff20fc01000000",
+            "0128e1328a7185e6ca"
+        ))
+        .unwrap();
+        let (update, cancelled) = stream.feed(true, true, false, 0, &data);
+
+        assert!(update.is_some());
+        assert!(!cancelled);
+
+        if let Some(update) = update {
+            for (key, value) in update.map.iter() {
+                println!("{}: {:?}", key, value);
+            }
+        }
+
+        assert!(!cancelled);
+    }
 }
