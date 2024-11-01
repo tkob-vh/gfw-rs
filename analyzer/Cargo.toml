@@ -10,3 +10,4 @@ hex = "0.4.3"
 pnet.workspace = true
 ringbuf = "0.4.7"
 tracing.workspace = true
+tracing-subscriber.workspace = true
