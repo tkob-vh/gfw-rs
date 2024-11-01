@@ -583,25 +583,6 @@ mod tests {
         assert!(!done);
     }
 
-    //#[test]
-    //fn test_dns_tcp_stream_feed_invalid_request() {
-    //    let mut stream = DNSTCPStream::new();
-    //    let data = vec![0u8]; // An invalid DNS request message
-    //    let (update, done) = stream.feed(false, true, false, 0, &data);
-    //    assert!(update.is_none());
-    //    assert!(done);
-    //}
-    //
-    //#[test]
-    //fn test_dns_tcp_stream_feed_invalid_response() {
-    //    let mut stream = DNSTCPStream::new();
-    //    let data = vec![0u8]; // An invalid DNS response message
-    //    let (update, done) = stream.feed(true, true, false, 0, &data);
-    //    assert!(update.is_none());
-    //    assert!(done);
-    //}
-    //
-
     #[test]
     fn test_dns_rr_to_prop_map() {
         let hex_string = concat!(

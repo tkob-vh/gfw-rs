@@ -1,6 +1,7 @@
 //! The analyzer crate which is usd in the gfw project.
 #![warn(missing_docs)]
 
+pub mod tls;
 pub mod udp;
 pub mod utils;
 
