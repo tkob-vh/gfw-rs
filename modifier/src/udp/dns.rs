@@ -103,7 +103,6 @@ impl UDPModifierInstance for DNSModifierInstance {
             }
         };
 
-        println!("dns_packet before processing: {:?}", dns_packet);
         // The packet is not a response or some error occurred.
         if dns_packet.get_is_response() == 0 || dns_packet.get_rcode() != Retcode::NoError {
             error!("Not a valid dns response");
@@ -164,7 +163,6 @@ impl UDPModifierInstance for DNSModifierInstance {
             _ => {}
         }
 
-        println!("dns_packet after processing: {:?}", dns_packet);
         // Modifiers must be safe for concurrent use, so we can't reuse the buffer
         Some(dns_packet.packet().to_vec())
     }
