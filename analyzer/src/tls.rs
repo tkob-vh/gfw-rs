@@ -15,6 +15,7 @@ use std::rc::Rc;
 pub const RECORD_TYPE_HANDSHAKE: u8 = 0x16;
 
 /// TLS handshake message types.
+/// ```
 /// enum {
 ///          client_hello(1),
 ///          server_hello(2),
@@ -29,7 +30,7 @@ pub const RECORD_TYPE_HANDSHAKE: u8 = 0x16;
 ///          message_hash(254),
 ///          (255)
 /// } HandshakeType;
-///
+/// ```
 /// TLS handshake message type for client hello.
 pub const TYPE_CLIENT_HELLO: u8 = 0x01;
 /// TLS handshake message type for server hello.
@@ -87,6 +88,7 @@ const EXT_ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
 /// * `ch_buf` - A mutable reference to a `BytesMut` buffer containing the client hello message data.
 ///
 /// Structure of this message:
+/// ```
 /// uint16 ProtocolVersion;
 /// opaque Random[32];
 /// uint8 CipherSuite[2];    /* Cryptographic suite selector */
@@ -98,8 +100,8 @@ const EXT_ENCRYPTED_CLIENT_HELLO: u16 = 0xfe0d;
 ///          opaque legacy_compression_methods<1..2^8-1>;
 ///          Extension extensions<8..2^16-1>;
 /// } ClientHello;
-///
-/// For more information, refer to https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2
+/// ```
+/// For more information, refer to <https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.2>
 pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap> {
     let mut prop_map = PropMap::new();
 
@@ -205,7 +207,7 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
 /// * `sh_buf` - A mutable reference to a `BytesMut` buffer containing the server hello message data.
 ///
 /// Structure of this message:
-///
+/// ```
 /// struct {
 ///          ProtocolVersion legacy_version = 0x0303;    /* TLS v1.2 */
 ///          Random random;
@@ -214,8 +216,8 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
 ///          uint8 legacy_compression_method = 0;
 ///          Extension extensions<6..2^16-1>;
 /// } ServerHello;
-///
-/// For more information, refer to https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
+/// ```
+/// For more information, refer to <https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3>
 pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap> {
     let mut prop_map = PropMap::new();
     // Version, random & session ID length combined are within 35 bytes,
