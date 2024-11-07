@@ -25,7 +25,8 @@ impl TCPAnalyzer for HTTPAnalyzer {
     }
 }
 
-struct HTTPStream {
+/// HTTPStream is a stream for HTTP protocol.
+pub struct HTTPStream {
     req_buf: BytesMut,
     req_map: PropMap,
     req_updated: bool,
@@ -62,9 +63,20 @@ impl HTTPStream {
         }
     }
 
+    fn split_at_crlf(buf: &mut BytesMut) -> Option<(BytesMut, BytesMut)> {
+        if let Some(pos) = buf.windows(2).position(|window| window == b"\r\n") {
+            let part1 = buf.split_to(pos);
+            let _ = buf.split_to(2);
+            let part2 = buf.clone();
+            Some((part1, part2))
+        } else {
+            None
+        }
+    }
+
     fn parse_request_line(&mut self) -> utils::lsm::LSMAction {
-        if let Some(line) = self.req_buf.split_mut(|&b| b == b'\n').next() {
-            let line = String::from_utf8_lossy(&line[..line.len() - 1]); // Strip \r\n
+        if let Some((line, remaining)) = Self::split_at_crlf(&mut self.req_buf) {
+            let line = String::from_utf8_lossy(&line[..line.len()]); // Strip \r\n
             let fields: Vec<&str> = line.split_whitespace().collect();
             if fields.len() != 3 {
                 return utils::lsm::LSMAction::Cancel;
@@ -79,6 +91,7 @@ impl HTTPStream {
             self.req_map.insert("path".to_string(), Rc::new(path));
             self.req_map.insert("version".to_string(), Rc::new(version));
             self.req_updated = true;
+            self.req_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
         } else {
             utils::lsm::LSMAction::Pause
@@ -86,8 +99,8 @@ impl HTTPStream {
     }
 
     fn parse_response_line(&mut self) -> utils::lsm::LSMAction {
-        if let Some(line) = self.resp_buf.split_mut(|&b| b == b'\n').next() {
-            let line = String::from_utf8_lossy(&line[..line.len() - 1]); // Strip \r\n
+        if let Some((line, remaining)) = Self::split_at_crlf(&mut self.resp_buf) {
+            let line = String::from_utf8_lossy(&line[..line.len()]); // Strip \r\n
             let fields: Vec<&str> = line.split_whitespace().collect();
             if fields.len() < 2 {
                 return utils::lsm::LSMAction::Cancel;
@@ -101,6 +114,7 @@ impl HTTPStream {
                 .insert("version".to_string(), Rc::new(version));
             self.resp_map.insert("status".to_string(), Rc::new(status));
             self.resp_updated = true;
+            self.resp_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
         } else {
             utils::lsm::LSMAction::Pause
@@ -109,7 +123,10 @@ impl HTTPStream {
 
     fn parse_headers(buf: &mut BytesMut) -> (utils::lsm::LSMAction, PropMap) {
         if let Some(headers) = buf.split_mut(|&b| b == b'\n').next() {
-            let headers = &headers[..headers.len() - 1]; // Strip \r\n\r\n
+            if headers.is_empty() {
+                return (utils::lsm::LSMAction::Next, PropMap::new());
+            }
+            let headers = &headers[..headers.len() - 1];
             let mut header_map = PropMap::new();
             for line in headers.split(|&b| b == b'\n') {
                 let parts: Vec<&[u8]> = line.splitn(2, |&b| b == b':').collect();
@@ -211,5 +228,130 @@ impl TCPStream for HTTPStream {
         self.req_map.clear();
         self.resp_map.clear();
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, rc::Rc};
+
+    use crate::{PropMap, TCPStream};
+
+    #[test]
+    fn test_http_parsing_request() {
+        let test_cases = vec![
+            ("GET / HTTP/1.1\r\n", {
+                let mut map = crate::PropMap::new();
+                map.insert("method".to_string(), Rc::new("GET".to_string()));
+                map.insert("path".to_string(), Rc::new("/".to_string()));
+                map.insert("version".to_string(), Rc::new("HTTP/1.1".to_string()));
+                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map
+            }),
+            ("POST /hello?a=1&b=2 HTTP/1.0\r\n", {
+                let mut map = crate::PropMap::new();
+                map.insert("method".to_string(), Rc::new("POST".to_string()));
+                map.insert("path".to_string(), Rc::new("/hello?a=1&b=2".to_string()));
+                map.insert("version".to_string(), Rc::new("HTTP/1.0".to_string()));
+                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map
+            }),
+            ("DELETE /goodbye HTTP/2.0\r\n", {
+                let mut map = crate::PropMap::new();
+                map.insert("method".to_string(), Rc::new("DELETE".to_string()));
+                map.insert("path".to_string(), Rc::new("/goodbye".to_string()));
+                map.insert("version".to_string(), Rc::new("HTTP/2.0".to_string()));
+                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map
+            }),
+        ];
+
+        for (tc, want) in test_cases {
+            let mut stream = super::HTTPStream::new();
+            let (a, _) = stream.feed(false, false, false, 0, tc.as_bytes());
+            let result_map = a.unwrap().map; // 获取实际返回的 `map`
+
+            // Check method
+            let method = result_map.get("method").unwrap();
+            let want_method = want.get("method").unwrap();
+            let method = method.downcast_ref::<String>().unwrap();
+            let want_method = want_method.downcast_ref::<String>().unwrap();
+            assert_eq!(method, want_method);
+
+            // Check path
+            let path = result_map.get("path").unwrap();
+            let want_path = want.get("path").unwrap();
+            let path = path.downcast_ref::<String>().unwrap();
+            let want_path = want_path.downcast_ref::<String>().unwrap();
+            assert_eq!(path, want_path);
+
+            // Check version
+            let version = result_map.get("version").unwrap();
+            let want_version = want.get("version").unwrap();
+            let version = version.downcast_ref::<String>().unwrap();
+            let want_version = want_version.downcast_ref::<String>().unwrap();
+            assert_eq!(version, want_version);
+        }
+    }
+
+    #[test]
+    fn test_http_1() {
+        let input = ("PUT /world HTTP/1.1\r\nContent-Length: 4\r\n\r\nbody", {
+            let mut map = crate::PropMap::new();
+            map.insert("method".to_string(), Rc::new("PUT".to_string()));
+            map.insert("path".to_string(), Rc::new("/world".to_string()));
+            map.insert("version".to_string(), Rc::new("HTTP/1.1".to_string()));
+            {
+                let mut headers = HashMap::new();
+                headers.insert("content-length".to_string(), "4".to_string());
+                map.insert("headers".to_string(), Rc::new(headers));
+            }
+            map
+        });
+
+        let mut stream = super::HTTPStream::new();
+        let (a, _) = stream.feed(false, false, false, 0, input.0.as_bytes());
+        let result_map = a.unwrap().map;
+        let want = input.1;
+        // Check method
+        let method = result_map.get("method").unwrap();
+        let want_method = want.get("method").unwrap();
+        let method = method.downcast_ref::<String>().unwrap();
+        let want_method = want_method.downcast_ref::<String>().unwrap();
+        assert_eq!(method, want_method);
+
+        // Check path
+        let path = result_map.get("path").unwrap();
+        let want_path = want.get("path").unwrap();
+        let path = path.downcast_ref::<String>().unwrap();
+        let want_path = want_path.downcast_ref::<String>().unwrap();
+        assert_eq!(path, want_path);
+
+        // Check version
+        let version = result_map.get("version").unwrap();
+        let want_version = want.get("version").unwrap();
+        let version = version.downcast_ref::<String>().unwrap();
+        let want_version = want_version.downcast_ref::<String>().unwrap();
+        assert_eq!(version, want_version);
+
+        // Check headers
+        let expected_headers = want.get("headers").unwrap();
+        let headers = result_map.get("headers").unwrap();
+
+        // Extract the headers HashMap from Rc<dyn Any>
+        let result_headers = headers.downcast_ref::<PropMap>().unwrap();
+        let expected_headers_map = expected_headers
+            .downcast_ref::<HashMap<String, String>>()
+            .unwrap();
+
+        // check content-length
+        assert_eq!(
+            result_headers
+                .get("content-length")
+                .unwrap()
+                .downcast_ref::<String>()
+                .unwrap(),
+            expected_headers_map.get("content-length").unwrap()
+        );
     }
 }
