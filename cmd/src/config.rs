@@ -1,5 +1,10 @@
+//! Configuration module for parsing YAML configuration files.
+
 use serde::Deserialize;
 use serde_yaml;
+use std::error::Error;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, BufReader};
 
 /// Main configuration struct that holds all configuration options for the application.
 #[derive(Deserialize, Debug)]
@@ -81,24 +86,30 @@ struct CliConfigRuleset {
 }
 
 /// Parses YAML configuration from a string and returns a `CliConfig` struct.
+#[allow(unused)]
 fn load_config_from_string(yaml_str: &str) -> Result<CliConfig, Box<dyn std::error::Error>> {
     // Parse the YAML string into the CliConfig struct
     let config: CliConfig = serde_yaml::from_str(yaml_str)?;
     Ok(config)
 }
 
-// /// Parses YAML configuration from a file and returns a `CliConfig` struct.
-// fn load_config_from_file(file_path: &str) -> Result<CliConfig, Box<dyn std::error::Error>> {
-//     // Open the file
-//     let file = File::open(file_path)?;
+/// Parses YAML configuration from a file and returns a `CliConfig` struct.
+pub async fn load_config_from_file(file_path: &str) -> Result<CliConfig, Box<dyn Error>> {
+    // Open the file asynchronously
+    let file = File::open(file_path).await?;
 
-//     // Wrap the file in a BufReader for efficient reading
-//     let reader = BufReader::new(file);
+    // Wrap the file in a BufReader for efficient reading
+    let reader = BufReader::new(file);
 
-//     // Parse the YAML file into the CliConfig struct
-//     let config: CliConfig = serde_yaml::from_reader(reader)?;
-//     Ok(config)
-// }
+    // Read the entire file into a string
+    let mut contents = String::new();
+    let mut reader = reader;
+    reader.read_to_string(&mut contents).await?;
+
+    // Parse the YAML string into the CliConfig struct
+    let config: CliConfig = serde_yaml::from_str(&contents)?;
+    Ok(config)
+}
 
 /// Provide default values by implementing `Default` trait for each struct
 impl Default for CliConfigIO {
