@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1.83"
+crc32fast = "1.4.2"
+pcap = "2.2.0"
+tokio.workspace = true
+tracing.workspace = true
