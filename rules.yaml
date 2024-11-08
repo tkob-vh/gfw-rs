@@ -1,0 +1,20 @@
+- name: block v2ex http
+  action: block
+  expr: string(http?.req?.headers?.host) endsWith "v2ex.com"
+
+- name: block v2ex https
+  action: block
+  expr: string(tls?.req?.sni) endsWith "v2ex.com"
+
+- name: block v2ex quic
+  action: block
+  expr: string(quic?.req?.sni) endsWith "v2ex.com"
+
+- name: v2ex dns poisoning
+  action: modify
+  modifier:
+    name: dns
+    args:
+      a: "0.0.0.0"
+      aaaa: "::"
+  expr: dns != nil && dns.qr && any(dns.questions, {.name endsWith "v2ex.com"})
