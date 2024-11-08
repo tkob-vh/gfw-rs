@@ -11,16 +11,16 @@ use tokio::io::{AsyncReadExt, BufReader};
 pub struct CliConfig {
     /// IO configuration defining input/output-related parameters.
     #[serde(default)]
-    io: CliConfigIO,
+    pub io: CliConfigIO,
     /// Worker configuration, setting parameters for worker threads.
     #[serde(default)]
-    workers: CliConfigWorkers,
+    pub workers: CliConfigWorkers,
     /// Ruleset configuration, including paths to GeoIP and GeoSite files.
     #[serde(default)]
-    ruleset: CliConfigRuleset,
+    pub ruleset: CliConfigRuleset,
     /// Replay configuration, specifying whether real-time replay is enabled.
     #[serde(default)]
-    replay: CliConfigReplay,
+    pub replay: CliConfigReplay,
 }
 
 /// IO configuration struct, containing settings for queues and buffers.
@@ -28,19 +28,19 @@ pub struct CliConfig {
 struct CliConfigIO {
     /// Size of the queue used in IO operations.
     #[serde(default)]
-    queue_size: u32,
+    pub queue_size: u32,
     /// Size of the receive buffer in bytes.
     #[serde(default)]
-    rcv_buf: i32,
+    pub rcv_buf: i32,
     /// Size of the send buffer in bytes.
     #[serde(default)]
-    snd_buf: i32,
+    pub snd_buf: i32,
     /// Enables or disables local mode.
     #[serde(default)]
-    local: bool,
+    pub local: bool,
     /// Enables or disables the RST (Reset) functionality.
     #[serde(default)]
-    rst: bool,
+    pub rst: bool,
 }
 
 /// Replay configuration struct, defining the mode for replay.
@@ -48,7 +48,7 @@ struct CliConfigIO {
 struct CliConfigReplay {
     /// Specifies if real-time replay mode is enabled.
     #[serde(default)]
-    realtime: bool,
+    pub realtime: bool,
 }
 
 /// Worker configuration struct, containing thread count, buffer, and timeout settings.
@@ -56,22 +56,22 @@ struct CliConfigReplay {
 struct CliConfigWorkers {
     /// Number of worker threads.
     #[serde(default)]
-    count: i32,
+    pub count: i32,
     /// Size of the queue for each worker.
     #[serde(default)]
-    queue_size: i32,
+    pub queue_size: i32,
     /// Maximum number of buffered pages across all TCP connections.
     #[serde(default)]
-    tcp_max_buffered_pages_total: i32,
+    pub tcp_max_buffered_pages_total: i32,
     /// Maximum number of buffered pages per TCP connection.
     #[serde(default)]
-    tcp_max_buffered_pages_per_conn: i32,
+    pub tcp_max_buffered_pages_per_conn: i32,
     /// TCP timeout duration, the unit is 's'.
     #[serde(default)]
-    tcp_timeout: u64,
+    pub tcp_timeout: u64,
     /// Maximum number of UDP streams.
     #[serde(default)]
-    udp_max_streams: i32,
+    pub udp_max_streams: i32,
 }
 
 /// Ruleset configuration struct, containing paths to GeoIP and GeoSite files.
@@ -79,10 +79,10 @@ struct CliConfigWorkers {
 struct CliConfigRuleset {
     /// Path to the GeoIP file.
     #[serde(default)]
-    geoip: String,
+    pub geoip: String,
     /// Path to the GeoSite file.
     #[serde(default)]
-    geosite: String,
+    pub geosite: String,
 }
 
 /// Parses YAML configuration from a string and returns a `CliConfig` struct.

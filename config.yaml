@@ -1,0 +1,21 @@
+io:
+  queue_size: 1024
+  rcv_buf: 4194304
+  snd_buf: 4194304
+  local: true
+  rst: false
+
+workers:
+  count: 4
+  queue_size: 64
+  tcp_max_buffered_pages_total: 65536
+  tcp_max_buffered_pages_per_conn: 16
+  tcp_timeout: 600
+  udp_max_streams: 4096
+
+ruleset:
+  geoip: "/path/to/geoip"
+  geosite: "/path/to/geosite"
+
+replay:
+  realtime: false

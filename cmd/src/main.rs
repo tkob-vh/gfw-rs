@@ -14,5 +14,6 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let _config = load_config_from_file(&cli.config_file).await.unwrap();
+    let config = load_config_from_file(&cli.config_file).await.unwrap();
+    println!("{:?}", config);
 }
