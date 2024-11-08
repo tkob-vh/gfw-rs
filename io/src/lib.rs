@@ -1,11 +1,12 @@
-//! This module provides functionality for handling network packets, including
+//! This crate provides functionality for handling network packets, including
 //! registering callbacks for packet processing, setting verdicts for packets,
 //! and managing packet I/O operations.
 
 pub mod nfqueue;
 pub mod pcap;
 
-use std::{error::Error, net::TcpStream, time::SystemTime};
+use snafu::Whatever;
+use std::{net::TcpStream, time::SystemTime};
 
 /// Verdict represents the possible actions that can be taken on a packet.
 #[derive(Debug)]
@@ -24,43 +25,80 @@ pub enum Verdict {
 
 /// Packet represents an IP packet.
 pub trait Packet: Send + Sync {
-    /// stream_id is the ID of the stream the packet belongs to.
+    /// The ID of the stream the packet belongs to.
     fn stream_id(&self) -> u32;
 
-    /// timestamp is the time the packet was received.
+    /// The time the packet was received.
     fn timestamp(&self) -> SystemTime;
 
-    /// data is the raw packet data, starting with the IP header.
+    /// The raw packet data, starting with the IP header.
     fn data(&self) -> &[u8];
 }
 
-pub type PacketCallback =
-    Box<dyn Fn(Box<dyn Packet>, Option<Box<dyn Error>>) -> bool + Send + Sync>;
+/// The function to be called for each received packet.
+/// Return false to "unregister" and stop receiving packets.
+pub type PacketCallback = Box<dyn Fn(Box<dyn Packet>, Option<Whatever>) -> bool + Send + Sync>;
 
+/// Manage the packet io.
 #[async_trait::async_trait]
 pub trait PacketIO {
-    /// Register registers a callback to be called for each packet received.
-    /// The callback should be called in one or more separate routines,
-    /// and stop when the context is cancelled.
-    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error>>;
+    /// Registers a callback function to be called for each received packet.
+    ///
+    /// # Arguments
+    ///
+    /// * `callback` - A `PacketCallback` function to be called for each packet.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
+    async fn register(&self, callback: PacketCallback) -> Result<(), Whatever>;
 
-    /// Set the verdict for a packet.
+    /// Set the verdict for a packet. (Used in iptables/nftables)
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - A boxed `Packet` instance.
+    /// * `verdict` - A `Verdict` indicating the verdict for the packet.
+    /// * `data` - A vector of bytes representing additional data.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
     async fn set_verdict(
         &self,
         packet: Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
-    ) -> Result<(), Box<dyn Error>>;
+    ) -> Result<(), Whatever>;
 
+    /// Establishes a protected TCP connection to the given address.
     ///
-    async fn protect_dial(&self, address: &str) -> Result<TcpStream, Box<dyn Error>>;
+    /// The packets sent/received through the connection must bypass
+    /// the packet IO and not be processed by the callback.
+    ///
+    /// # Arguments
+    ///
+    /// * `addr` - A string slice representing the address to connect to.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<TcpStream, Box<dyn Error>>` - A result containing the TCP stream or an error.
+    async fn protected_conn(&self, address: &str) -> Result<TcpStream, Whatever>;
 
-    /// Close the packet io.
-    async fn close(&self) -> Result<(), Box<dyn Error>>;
+    ///// Close the packet io.
+    //async fn close(&self) -> Result<(), Whatever>;
 
-    /// Give packet io access to context cancel function, enabling it to trigger a shutdown.
+    /// Sets a cancellation function to be called when the packet processing is cancelled.
+    ///
+    /// # Arguments
+    ///
+    /// * `cancel_func` - A boxed function to be called on cancellation.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
     async fn set_cancel_func(
         &self,
         cancel_func: Box<dyn Fn() + Send + Sync>,
-    ) -> Result<(), Box<dyn Error>>;
+    ) -> Result<(), Whatever>;
 }
