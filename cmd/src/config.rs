@@ -25,7 +25,7 @@ pub struct CliConfig {
 
 /// IO configuration struct, containing settings for queues and buffers.
 #[derive(Deserialize, Debug)]
-struct CliConfigIO {
+pub struct CliConfigIO {
     /// Size of the queue used in IO operations.
     #[serde(default)]
     pub queue_size: u32,
@@ -44,8 +44,8 @@ struct CliConfigIO {
 }
 
 /// Replay configuration struct, defining the mode for replay.
-#[derive(Deserialize, Debug)]
-struct CliConfigReplay {
+#[derive(Deserialize, Debug, Default)]
+pub struct CliConfigReplay {
     /// Specifies if real-time replay mode is enabled.
     #[serde(default)]
     pub realtime: bool,
@@ -53,7 +53,7 @@ struct CliConfigReplay {
 
 /// Worker configuration struct, containing thread count, buffer, and timeout settings.
 #[derive(Deserialize, Debug)]
-struct CliConfigWorkers {
+pub struct CliConfigWorkers {
     /// Number of worker threads.
     #[serde(default)]
     pub count: i32,
@@ -76,7 +76,7 @@ struct CliConfigWorkers {
 
 /// Ruleset configuration struct, containing paths to GeoIP and GeoSite files.
 #[derive(Deserialize, Debug)]
-struct CliConfigRuleset {
+pub struct CliConfigRuleset {
     /// Path to the GeoIP file.
     #[serde(default)]
     pub geoip: String,
@@ -121,12 +121,6 @@ impl Default for CliConfigIO {
             local: false,
             rst: false,
         }
-    }
-}
-
-impl Default for CliConfigReplay {
-    fn default() -> Self {
-        CliConfigReplay { realtime: false }
     }
 }
 
