@@ -7,3 +7,7 @@ edition = "2021"
 serde.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
+nt-modifier.workspace = true
+rhai.workspace = true
+nt-analyzer.workspace = true
+tracing.workspace = true

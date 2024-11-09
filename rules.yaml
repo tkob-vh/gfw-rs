@@ -1,13 +1,16 @@
 - name: block v2ex http
   action: block
+  analyzer: http
   expr: string(http?.req?.headers?.host) endsWith "v2ex.com"
 
 - name: block v2ex https
   action: block
+  analyzer: tls
   expr: string(tls?.req?.sni) endsWith "v2ex.com"
 
 - name: block v2ex quic
   action: block
+  analyzer: quic
   expr: string(quic?.req?.sni) endsWith "v2ex.com"
 
 - name: v2ex dns poisoning
@@ -17,4 +20,5 @@
     args:
       a: "0.0.0.0"
       aaaa: "::"
+  analyzer: dns
   expr: dns != nil && dns.qr && any(dns.questions, {.name endsWith "v2ex.com"})

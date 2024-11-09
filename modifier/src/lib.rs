@@ -9,6 +9,7 @@
 
 pub mod udp;
 
+use std::sync::Arc;
 use std::{any::Any, collections::HashMap};
 
 /// The `Modifier` trait allows for the creation of new instances of modifiers with specific arguments.
@@ -25,10 +26,8 @@ pub trait Modifier {
     /// # Returns
     ///
     /// * `Option<Box<dyn Instance>>` - A boxed instance of the modifier or `None` if the arguments are invalid.
-    fn new_instance(
-        &self,
-        args: HashMap<String, Box<dyn std::any::Any>>,
-    ) -> Option<Box<dyn Instance>>;
+    fn new_instance(&self, args: HashMap<String, std::string::String>)
+        -> Option<Arc<dyn Instance>>;
 }
 
 /// The `Instance` trait is a marker trait for instances of modifiers.

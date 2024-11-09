@@ -6,6 +6,7 @@
 use crate::{udp::dns, Instance, Modifier, UDPModifierInstance};
 use pnet::packet::dns::{DnsClasses, DnsResponse, DnsTypes, MutableDnsPacket, Retcode};
 use pnet::packet::Packet;
+use std::sync::Arc;
 use std::{
     net::{Ipv4Addr, Ipv6Addr},
     str::FromStr,
@@ -21,15 +22,15 @@ impl Modifier for DNSModifier {
     }
     fn new_instance(
         &self,
-        args: std::collections::HashMap<String, Box<dyn std::any::Any>>,
-    ) -> Option<Box<dyn Instance>> {
+        args: std::collections::HashMap<String, String>,
+    ) -> Option<Arc<dyn Instance>> {
         // Create a new instance.
         let mut ip = DNSModifierInstance::new();
 
         // Find the value of the key "a" in args.
         match args.get("a") {
             Some(value) => {
-                let a_str = value.downcast_ref::<String>().unwrap().as_str();
+                let a_str = value;
 
                 match Ipv4Addr::from_str(a_str) {
                     Ok(a) => {
@@ -49,7 +50,7 @@ impl Modifier for DNSModifier {
         // Find the value of the key "aaaa" in args.
         match args.get("aaaa") {
             Some(value) => {
-                let aaaa_str = value.downcast_ref::<String>().unwrap().as_str();
+                let aaaa_str = value;
 
                 match Ipv6Addr::from_str(aaaa_str) {
                     Ok(aaaa) => {
@@ -66,7 +67,7 @@ impl Modifier for DNSModifier {
             }
         }
 
-        Some(Box::new(ip))
+        Some(Arc::new(ip))
     }
 }
 
@@ -177,9 +178,9 @@ mod tests {
     #[test]
     fn test_dns_modifier_new() {
         let modifier = DNSModifier;
-        let mut args: HashMap<String, Box<dyn std::any::Any>> = HashMap::new();
-        args.insert("a".to_string(), Box::new("192.168.0.1".to_string()));
-        args.insert("aaaa".to_string(), Box::new("::1".to_string()));
+        let mut args = HashMap::new();
+        args.insert("a".to_string(), "192.168.0.1".to_string());
+        args.insert("aaaa".to_string(), "::1".to_string());
 
         let instance = modifier.new_instance(args).unwrap();
         let dns_instance = instance
