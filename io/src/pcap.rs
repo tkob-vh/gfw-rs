@@ -13,10 +13,15 @@ use async_trait::async_trait;
 use crc32fast::hash;
 use pcap::Capture;
 use snafu::Whatever;
-use std::net::TcpStream;
+
+use std::any::Any;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+
+use tokio::net::TcpStream;
 use tokio::sync::Mutex;
+
+type CancelFunc = Arc<Mutex<Option<Box<dyn Fn() + Send + Sync>>>>;
 
 /// Struct representing the pcap packet input/output operations.
 pub struct PcapPacketIO {
@@ -24,7 +29,7 @@ pub struct PcapPacketIO {
     time_offset: Arc<Mutex<Option<Duration>>>,
 
     /// Can be called to stop the packet processing.
-    cancel_func: Arc<Mutex<Option<Box<dyn Fn() + Send + Sync>>>>,
+    cancel_func: CancelFunc,
 
     /// Store the configuration for the `PcapPacketIO` instance.
     config: PcapPacketIOConfig,
@@ -99,7 +104,7 @@ impl PcapPacketIO {
 
 #[async_trait]
 impl PacketIO for PcapPacketIO {
-    async fn register(&self, callback: PacketCallback) -> Result<(), Whatever> {
+    async fn register(&mut self, callback: PacketCallback) -> Result<(), Whatever> {
         let mut capture = Capture::from_file(&self.config.pcap_file).unwrap();
         let time_offset = self.time_offset.clone();
         let config = self.config.clone();
@@ -139,7 +144,7 @@ impl PacketIO for PcapPacketIO {
 
                 // Get the src ip and dst ip.
                 if let Some((src, dst)) = Self::extract_ip_addresses(packet.data) {
-                    let mut endpoints = vec![src, dst];
+                    let mut endpoints = [src, dst];
                     endpoints.sort();
 
                     let id = hash(endpoints.join(",").as_bytes());
@@ -169,11 +174,12 @@ impl PacketIO for PcapPacketIO {
         Ok(())
     }
 
+    #[allow(unused_variables)]
     async fn set_verdict(
         &self,
-        _packet: Box<dyn Packet>,
-        _verdict: Verdict,
-        _data: Vec<u8>,
+        packet: &mut Box<dyn Packet>,
+        verdict: Verdict,
+        data: Vec<u8>,
     ) -> Result<(), Whatever> {
         // PCAP is read-only, so we don't need to implement verdict handling
         Ok(())
@@ -181,7 +187,7 @@ impl PacketIO for PcapPacketIO {
 
     async fn protected_conn(&self, addr: &str) -> Result<TcpStream, Whatever> {
         // Simple TCP connection as PCAP doesn't interfere with networking
-        Ok(TcpStream::connect(addr).unwrap())
+        Ok(TcpStream::connect(addr).await.unwrap())
     }
 
     //async fn close(&self) -> Result<(), Whatever> {
@@ -237,6 +243,14 @@ impl Packet for PcapPacket {
     fn data(&self) -> &[u8] {
         &self.data
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[cfg(test)]
@@ -283,7 +297,7 @@ mod tests {
             pcap_file: String::from("../assets/pcaps/ipv4frags.pcap"),
             real_time: false,
         };
-        let pcap_io = PcapPacketIO::new(config).unwrap();
+        let mut pcap_io = PcapPacketIO::new(config).unwrap();
 
         let result = pcap_io
             .register(Box::new(move |_, err| {

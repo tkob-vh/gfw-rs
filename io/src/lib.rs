@@ -6,7 +6,8 @@ pub mod nfqueue;
 pub mod pcap;
 
 use snafu::Whatever;
-use std::{net::TcpStream, time::SystemTime};
+use std::{any::Any, time::SystemTime};
+use tokio::net::TcpStream;
 
 /// Verdict represents the possible actions that can be taken on a packet.
 #[derive(Debug)]
@@ -24,7 +25,7 @@ pub enum Verdict {
 }
 
 /// Packet represents an IP packet.
-pub trait Packet: Send + Sync {
+pub trait Packet: Any + Send + Sync {
     /// The ID of the stream the packet belongs to.
     fn stream_id(&self) -> u32;
 
@@ -33,6 +34,10 @@ pub trait Packet: Send + Sync {
 
     /// The raw packet data, starting with the IP header.
     fn data(&self) -> &[u8];
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 /// The function to be called for each received packet.
@@ -51,7 +56,7 @@ pub trait PacketIO {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    async fn register(&self, callback: PacketCallback) -> Result<(), Whatever>;
+    async fn register(&mut self, callback: PacketCallback) -> Result<(), Whatever>;
 
     /// Set the verdict for a packet. (Used in iptables/nftables)
     ///
@@ -66,7 +71,7 @@ pub trait PacketIO {
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
     async fn set_verdict(
         &self,
-        packet: Box<dyn Packet>,
+        packet: &mut Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
     ) -> Result<(), Whatever>;
