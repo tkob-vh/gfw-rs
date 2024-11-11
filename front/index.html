@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置页面</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>配置与规则管理</h1>
+
+        <!-- 配置部分 -->
+        <div class="config-section">
+            <h2>配置</h2>
+            <div class="input-field">
+                <label for="config-key1">配置项1：</label>
+                <input type="text" id="config-key1" placeholder="请输入配置项1的值">
+            </div>
+            <div class="input-field">
+                <label for="config-key2">配置项2：</label>
+                <input type="text" id="config-key2" placeholder="请输入配置项2的值">
+            </div>
+            <button class="button button-save" onclick="saveConfig()">保存配置</button>
+        </div>
+
+        <!-- 规则部分 -->
+        <div class="rules-section">
+            <h2>规则</h2>
+            <div id="rules-container">
+                <!-- 动态添加规则的区域 -->
+            </div>
+            <button class="button button-add" onclick="addRule()">+ 增加规则</button>
+            <button class="button button-save" onclick="saveRules()">保存规则</button>
+        </div>
+
+        <!-- 启动服务按钮 -->
+        <button class="button button-start" onclick="startService()">启动服务</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
