@@ -61,7 +61,7 @@ function saveConfig() {
     localStorage.setItem('config', JSON.stringify(config));
 
     // 发送请求到后端
-    fetch('/saveConfig', {
+    fetch('/save/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -105,37 +105,88 @@ function loadConfig() {
 }
 
 // 增加规则
+// 增加规则
 let ruleId = 0;
 function addRule() {
     const rulesContainer = document.getElementById('rules-container');
     const newRule = document.createElement('div');
-    newRule.setAttribute('id', 'rule-' + ruleId);
+    newRule.setAttribute('id', 'rule-' + ruleId);  // 设置唯一 ID
     newRule.classList.add('rule-item');
+    
     newRule.innerHTML = `
-        <input type="text" placeholder="Name">
-        <input type="text" placeholder="Action">
-        <input type="text" placeholder="Analyzer">
-        <input type="text" placeholder="Expr">
+        <input type="text" placeholder="Name" style="font-size: 12px; width: 150px;">
+        
+        <select style="width: 120px;">
+            <option value="allow">Allow</option>
+            <option value="block">Block</option>
+            <option value="deny">Deny</option>
+            <option value="alert">Alert</option>
+        </select>
+        
+        <select style="width: 120px;">
+            <option value="http">HTTP</option>
+            <option value="dns">DNS</option>
+            <option value="ftp">FTP</option>
+            <option value="icmp">ICMP</option>
+            <option value="ssh">SSH</option>
+        </select>
+        
+        <input type="text" placeholder="Expr" style="width: 300px;">
+        
         <button class="button button-delete" onclick="deleteRule(${ruleId})">删除</button>
     `;
+    
+    // 将新规则添加到容器中
     rulesContainer.appendChild(newRule);
     ruleId++; // 更新规则ID，确保每个规则都有唯一的ID
 }
 
+
 // 删除规则
 function deleteRule(id) {
     const ruleToDelete = document.getElementById('rule-' + id);
-    ruleToDelete.parentNode.removeChild(ruleToDelete);
+    if (ruleToDelete) {
+        ruleToDelete.remove();  // 删除该规则
+
+        // 删除后重新保存到 localStorage
+        updateRulesInLocalStorage();
+    }
 }
+
+// 更新 localStorage 中的规则
+function updateRulesInLocalStorage() {
+    const rules = [];
+
+    // 获取所有规则项并更新 localStorage
+    document.querySelectorAll('.rule-item').forEach((rule, index) => {
+        const name = rule.querySelector('input[type="text"]:nth-child(1)').value;
+        const action = rule.querySelector('select:nth-child(2)').value;
+        const analyzer = rule.querySelector('select:nth-child(3)').value;
+        const expr = rule.querySelector('input[type="text"]:nth-child(4)').value;
+
+        // 确保所有字段都有值
+        if (name && action && analyzer && expr) {
+            rules.push({ name, action, analyzer, expr });
+        }
+    });
+
+    // 将更新后的规则保存到 localStorage
+    localStorage.setItem('rules', JSON.stringify(rules));
+}
+
 
 // 保存规则到 localStorage
 function saveRules() {
     const rules = [];
+
+    // 获取所有规则项
     document.querySelectorAll('.rule-item').forEach(rule => {
-        const name = rule.querySelector('input:nth-child(1)').value;
-        const action = rule.querySelector('input:nth-child(2)').value;
-        const analyzer = rule.querySelector('input:nth-child(3)').value;
-        const expr = rule.querySelector('input:nth-child(4)').value;
+        const name = rule.querySelector('input[type="text"]:nth-child(1)').value;
+        const action = rule.querySelector('select:nth-child(2)').value;  // 从 <select> 获取值
+        const analyzer = rule.querySelector('select:nth-child(3)').value;  // 从 <select> 获取值
+        const expr = rule.querySelector('input[type="text"]:nth-child(4)').value;
+
+        // 确保所有字段都有值
         if (name && action && analyzer && expr) {
             rules.push({ name, action, analyzer, expr });
         }
@@ -146,7 +197,8 @@ function saveRules() {
     // 保存到 localStorage
     localStorage.setItem('rules', JSON.stringify(rules));
 
-    fetch('/saveRules', {
+    // 将规则发送到服务器
+    fetch('/save/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rules)
@@ -156,7 +208,7 @@ function saveRules() {
                 alert('规则已保存');
                 return response.json();
             } else {
-                throw new Error('Something went wrong on server');
+                throw new Error('服务器出错');
             }
         })
         .then(data => {
@@ -172,22 +224,40 @@ function saveRules() {
 function loadRules() {
     const rules = JSON.parse(localStorage.getItem('rules'));
     const rulesContainer = document.getElementById('rules-container');
+    
+    // 如果存在规则数据
     if (rules) {
-        rules.forEach(rule => {
+        rules.forEach((rule, index) => {
             const ruleDiv = document.createElement('div');
             ruleDiv.classList.add('rule-item');
+            ruleDiv.setAttribute('id', 'rule-' + index); // 使用规则的索引作为 ID
+
             ruleDiv.innerHTML = `
-                <input type="text" value="${rule.name}" placeholder="Name">
-                <input type="text" value="${rule.action}" placeholder="Action">
-                <input type="text" value="${rule.analyzer}" placeholder="Analyzer">
-                <input type="text" value="${rule.expr}" placeholder="Expr">
-                <button class="button button-delete" onclick="deleteRule(${ruleId})">删除</button>
+                <input type="text" value="${rule.name}" placeholder="Name" style="font-size: 12px; width: 150px;">
+                <select style="width: 120px;">
+                    <option value="allow" ${rule.action === 'allow' ? 'selected' : ''}>Allow</option>
+                    <option value="block" ${rule.action === 'block' ? 'selected' : ''}>Block</option>
+                    <option value="deny" ${rule.action === 'deny' ? 'selected' : ''}>Deny</option>
+                    <option value="alert" ${rule.action === 'alert' ? 'selected' : ''}>Alert</option>
+                </select>
+                <select style="width: 120px;">
+                    <option value="http" ${rule.analyzer === 'http' ? 'selected' : ''}>HTTP</option>
+                    <option value="dns" ${rule.analyzer === 'dns' ? 'selected' : ''}>DNS</option>
+                    <option value="ftp" ${rule.analyzer === 'ftp' ? 'selected' : ''}>FTP</option>
+                    <option value="icmp" ${rule.analyzer === 'icmp' ? 'selected' : ''}>ICMP</option>
+                    <option value="ssh" ${rule.analyzer === 'ssh' ? 'selected' : ''}>SSH</option>
+                </select>
+                <input type="text" value="${rule.expr}" placeholder="Expr" style="width: 300px;">
+                <button class="button button-delete" onclick="deleteRule(${index})">删除</button>
             `;
+            
+            // 将新规则添加到容器中
             rulesContainer.appendChild(ruleDiv);
-            ruleId++; // 更新规则ID
         });
     }
 }
+
+
 
 // 页面加载时自动调用
 window.onload = function () {
@@ -203,20 +273,20 @@ function toggleService(button) {
 
     if (button.textContent === '启动服务') {
         // 启动服务的 API 请求
-        fetch('/startService', { method: 'POST' })
+        fetch('/service/start', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     button.textContent = '关闭服务';
                     logContainer.style.display = 'block';
-                    // 假设服务端返回的data.logs是日志数组
-                    data.logs.forEach(log => {
-                        const logEntry = document.createElement('div');
-                        logEntry.textContent = log;
-                        logs.appendChild(logEntry);
-                    });
-                    // 可能需要设置WebSocket连接来接收实时日志
-                    setupWebSocket(logs);
+                    // // 假设服务端返回的data.logs是日志数组
+                    // data.logs.forEach(log => {
+                    //     const logEntry = document.createElement('div');
+                    //     logEntry.textContent = log;
+                    //     logs.appendChild(logEntry);
+                    // });
+                    // // 可能需要设置WebSocket连接来接收实时日志
+                    // setupWebSocket(logs);
                 } else {
                     alert('服务启动失败');
                 }
@@ -227,7 +297,7 @@ function toggleService(button) {
             });
     } else {
         // 关闭服务的 API 请求
-        fetch('/stopService', { method: 'POST' })
+        fetch('/service/stop', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
