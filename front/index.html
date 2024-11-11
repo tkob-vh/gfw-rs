@@ -13,16 +13,101 @@
     <div class="container">
         <h1>配置与规则管理</h1>
 
-        <!-- 配置部分 -->
-        <div class="config-section">
-            <h2>配置</h2>
-            <div class="input-field">
-                <label for="config-key1">配置项1：</label>
-                <input type="text" id="config-key1" placeholder="请输入配置项1的值">
+        <div class="accordion">
+            <!-- IO Configuration -->
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    IO Configuration
+                </button>
+                <div class="accordion-body">
+                    <!-- Input fields for IO configuration -->
+                    <div class="input-field">
+                        <label for="queue_size">Queue Size:</label>
+                        <input type="number" id="queue_size" value="1024">
+                    </div>
+                    <div class="input-field">
+                        <label for="rcv_buf">Receive Buffer:</label>
+                        <input type="number" id="rcv_buf" value="4194304">
+                    </div>
+                    <div class="input-field">
+                        <label for="snd_buf">Send Buffer:</label>
+                        <input type="number" id="snd_buf" value="4194304">
+                    </div>
+                    <div class="input-field">
+                        <label for="local">Local:</label>
+                        <input type="checkbox" id="local" checked>
+                    </div>
+                    <div class="input-field">
+                        <label for="rst">RST:</label>
+                        <input type="checkbox" id="rst">
+                    </div>
+                </div>
             </div>
-            <div class="input-field">
-                <label for="config-key2">配置项2：</label>
-                <input type="text" id="config-key2" placeholder="请输入配置项2的值">
+
+            <!-- Workers Configuration -->
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    Workers Configuration
+                </button>
+                <div class="accordion-body">
+                    <!-- Input fields for Workers configuration -->
+                    <div class="input-field">
+                        <label for="workers_count">Count:</label>
+                        <input type="number" id="workers_count" value="4">
+                    </div>
+                    <div class="input-field">
+                        <label for="workers_queue_size">Queue Size:</label>
+                        <input type="number" id="workers_queue_size" value="64">
+                    </div>
+                    <div class="input-field">
+                        <label for="tcp_max_buffered_pages_total">TCP Max Buffered Pages Total:</label>
+                        <input type="number" id="tcp_max_buffered_pages_total" value="65536">
+                    </div>
+                    <div class="input-field">
+                        <label for="tcp_max_buffered_pages_per_conn">TCP Max Buffered Pages Per Connection:</label>
+                        <input type="number" id="tcp_max_buffered_pages_per_conn" value="16">
+                    </div>
+                    <div class="input-field">
+                        <label for="tcp_timeout">TCP Timeout:</label>
+                        <input type="number" id="tcp_timeout" value="600">
+                    </div>
+                    <div class="input-field">
+                        <label for="udp_max_streams">UDP Max Streams:</label>
+                        <input type="number" id="udp_max_streams" value="4096">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ruleset Configuration -->
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    Ruleset Configuration
+                </button>
+                <div class="accordion-body">
+                    <!-- Input fields for Ruleset configuration -->
+                    <div class="input-field">
+                        <label for="geoip">GeoIP Path:</label>
+                        <input type="text" id="geoip" value="/path/to/geoip">
+                    </div>
+                    <div class="input-field">
+                        <label for="geosite">GeoSite Path:</label>
+                        <input type="text" id="geosite" value="/path/to/geosite">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Replay Configuration -->
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="toggleAccordion(this)">
+                    Replay Configuration
+                </button>
+                <div class="accordion-body">
+                    <!-- Input fields for Replay configuration -->
+                    <div class="input-field">
+                        <label for="realtime">Realtime:</label>
+                        <input type="checkbox" id="realtime">
+                    </div>
+                </div>
             </div>
             <button class="button button-save" onclick="saveConfig()">保存配置</button>
         </div>
@@ -37,8 +122,11 @@
             <button class="button button-save" onclick="saveRules()">保存规则</button>
         </div>
 
-        <!-- 启动服务按钮 -->
-        <button class="button button-start" onclick="startService()">启动服务</button>
+        <button class="button button-start" onclick="toggleService(this)">启动服务</button>
+        <div id="log-container" style="display:none;">
+            <h3>服务日志</h3>
+            <div id="logs"></div>
+        </div>
     </div>
 
     <script src="script.js"></script>
