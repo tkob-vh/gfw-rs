@@ -1,3 +1,6 @@
+//! This module provides functionality for handling TCP streams, including
+//! creating new TCP streams, processing TCP packets, and updating stream properties.
+
 use crate::utils::process_prop_update;
 
 use pnet::packet::tcp::TcpPacket;
@@ -18,20 +21,20 @@ enum TCPVerdict {
     DropStream,
 }
 
-///
+/// TCPContext holds the current verdict and capture information for a TCP stream.
 pub struct TCPContext {
     verdict: TCPVerdict,
     capture_info: CaptureInfo,
 }
 
-///
+/// CaptureInfo holds the timestamp and length of a captured packet.
 #[derive(Clone)]
 pub struct CaptureInfo {
     timestamp: std::time::SystemTime,
     length: u32,
 }
 
-///
+/// TCPStreamFactory is responsible for creating new TCP streams and updating the ruleset.
 pub struct TCPStreamFactory {
     worker_id: i32,
 
@@ -44,6 +47,12 @@ pub struct TCPStreamFactory {
 
 impl TCPStreamFactory {
     /// Create a new TCPStreamFactory.
+    ///
+    /// # Arguments
+    ///
+    /// * `worker_id` - The ID of the worker.
+    /// * `node` - The Snowflake ID generator.
+    /// * `ruleset` - The ruleset for the TCP stream entries.
     pub fn new(
         worker_id: i32,
         node: SnowflakeIdGenerator,
@@ -57,6 +66,16 @@ impl TCPStreamFactory {
     }
 
     /// Create a new TCPStream according to the src and dst info (addr and port).
+    ///
+    /// # Arguments
+    ///
+    /// * `src_ip` - The source IP address.
+    /// * `dst_ip` - The destination IP address.
+    /// * `tcp_packet` - The TCP packet.
+    ///
+    /// # Returns
+    ///
+    /// An optional TCPStreamEngine.
     async fn new_stream<'a>(
         &mut self,
         src_ip: IpAddr,
@@ -114,7 +133,15 @@ impl TCPStreamFactory {
         })
     }
 
-    /// Update the ruleset
+    /// Update the ruleset.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_ruleset` - The new ruleset.
+    ///
+    /// # Returns
+    ///
+    /// A result indicating success or failure.
     async fn update_ruleset(
         &self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
@@ -125,7 +152,7 @@ impl TCPStreamFactory {
     }
 }
 
-///
+/// TCPStreamEngine processes TCP packets and updates stream properties.
 struct TCPStreamEngine {
     /// The stream info for the ruleset.
     info: nt_ruleset::StreamInfo,
@@ -142,12 +169,20 @@ struct TCPStreamEngine {
     /// The processed stream entries.
     done_entries: Vec<TCPStreamEntry>,
 
-    ///
     last_verdict: TCPVerdict,
 }
 
 impl TCPStreamEngine {
+    /// Accepts a TCP packet and updates the context verdict.
     ///
+    /// # Arguments
+    ///
+    /// * `tcp` - The TCP packet.
+    /// * `context` - A mutable reference to the TCPContext.
+    ///
+    /// # Returns
+    ///
+    /// A boolean indicating whether the packet is accepted.
     #[allow(unused_variables)]
     fn accept(&self, tcp: &TcpPacket, context: &mut TCPContext) -> bool {
         // Make sure every stream matches against the ruleset at least once,
@@ -223,6 +258,20 @@ impl TCPStreamEngine {
         }
     }
 
+    /// Feeds data to a TCP stream entry and updates its properties.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - A mutable reference to the TCPStreamEntry.
+    /// * `reverse` - A boolean indicating whether the data is in reverse order.
+    /// * `start` - A boolean indicating whether this is the start of the stream.
+    /// * `end` - A boolean indicating whether this is the end of the stream.
+    /// * `skip` - The number of bytes to skip.
+    /// * `data` - A slice of bytes representing the data to be processed.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the property update, close update, and a boolean indicating whether the entry is done.
     fn feed_entry(
         entry: &mut TCPStreamEntry,
         reverse: bool,
@@ -246,7 +295,7 @@ impl TCPStreamEngine {
             };
 
             let (update, done) = entry.stream.feed(reverse, start, end, skip, data);
-            entry.quota -= data.len() as u32;
+            entry.quota -= data.len() as i32;
 
             if entry.quota <= 0 {
                 let close_update = entry.stream.close(true);
@@ -258,6 +307,8 @@ impl TCPStreamEngine {
     }
 
     /// Signal close to all active entries & move them to doneEntries
+    ///
+    /// This function signals the close of all active TCP stream entries and moves them to the done entries list.
     fn close_active_entries(&mut self) {
         let mut updated = false;
 
@@ -276,7 +327,7 @@ impl TCPStreamEngine {
     }
 }
 
-///
+/// TCPStreamEntry represents a single TCP stream entry.
 struct TCPStreamEntry {
     /// The name of the analyzer.
     name: String,
@@ -288,10 +339,18 @@ struct TCPStreamEntry {
     has_limit: bool,
 
     /// The byte limit for the stream.
-    quota: u32,
+    quota: i32,
 }
 
 /// Downcast trait `Analyzer` to trait `TCPAnalyzer`.
+///
+/// # Arguments
+///
+/// * `analyzers` - A slice of Arc-wrapped Analyzer trait objects.
+///
+/// # Returns
+///
+/// A vector of Arc-wrapped TCPAnalyzer trait objects.
 fn analyzer_to_tcp_analyzers(
     analyzers: &[Arc<dyn nt_analyzer::Analyzer>],
 ) -> Vec<Arc<dyn nt_analyzer::TCPAnalyzer>> {
@@ -306,6 +365,14 @@ fn analyzer_to_tcp_analyzers(
 }
 
 /// Convert ruleset action to tcp verdict.
+///
+/// # Arguments
+///
+/// * `action` - The ruleset action.
+///
+/// # Returns
+///
+/// The corresponding TCPVerdict.
 fn action_to_tcp_verdict(action: nt_ruleset::Action) -> TCPVerdict {
     match action {
         nt_ruleset::Action::Maybe | nt_ruleset::Action::Allow | nt_ruleset::Action::Modify => {
