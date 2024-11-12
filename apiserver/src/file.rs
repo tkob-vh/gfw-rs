@@ -25,7 +25,7 @@ async fn serve_index() -> axum::response::Html<String> {
 }
 
 async fn serve_styles() -> axum::response::Response<String> {
-    let css_content = fs::read_to_string(format!("{}/styles.css", STATIC_FILES_PATH.to_owned()))
+    let css_content = fs::read_to_string(format!("{}/styles.css", *STATIC_FILES_PATH))
         .await
         .unwrap();
     axum::response::Response::builder()
@@ -35,7 +35,7 @@ async fn serve_styles() -> axum::response::Response<String> {
 }
 
 async fn serve_script() -> axum::response::Response<String> {
-    let script_content = fs::read_to_string(format!("{}/script.js", STATIC_FILES_PATH.to_owned()))
+    let script_content = fs::read_to_string(format!("{}/script.js", *STATIC_FILES_PATH))
         .await
         .unwrap();
     axum::response::Response::builder()

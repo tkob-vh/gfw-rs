@@ -83,10 +83,10 @@ impl crate::Ruleset for ExprRuleset {
 }
 
 fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
-    scope.push("src_ip".to_owned(), info.src_ip.clone());
+    scope.push("src_ip".to_owned(), info.src_ip);
     scope.push("protocol".to_owned(), info.protocol.to_string());
     scope.push("src_port".to_owned(), info.src_port);
-    scope.push("dst_ip".to_owned(), info.dst_ip.clone());
+    scope.push("dst_ip".to_owned(), info.dst_ip);
     scope.push("dst_port".to_owned(), info.dst_port);
     for (key, value) in info.props.clone() {
         scope.push(key, value);

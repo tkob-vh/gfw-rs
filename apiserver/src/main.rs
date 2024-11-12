@@ -2,11 +2,10 @@ use axum::Router;
 use std::net::SocketAddr;
 
 async fn create_router() -> Router {
-    let root = apiserver::file::create_router()
+    apiserver::file::create_router()
         .await
         .merge(apiserver::save::create_router().await)
-        .merge(apiserver::service::create_router().await);
-    root
+        .merge(apiserver::service::create_router().await)
 }
 
 #[tokio::main]
