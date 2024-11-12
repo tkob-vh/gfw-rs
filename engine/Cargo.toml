@@ -4,3 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+nt-analyzer.workspace = true
+nt-io.workspace = true
+nt-ruleset.workspace = true
+pnet.workspace = true
+rs-snowflake = "0.6.0"
+snafu.workspace = true
+tokio.workspace = true
+tracing.workspace = true
