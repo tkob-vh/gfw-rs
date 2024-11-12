@@ -50,12 +50,12 @@ pub struct CompiledExprRule {
 pub struct ExprRuleset {
     pub engine: Arc<rhai::Engine>,
     pub rules: Vec<CompiledExprRule>,
-    pub analyzer: Vec<Arc<dyn Analyzer>>,
+    pub analyzers: Vec<Arc<dyn Analyzer>>,
 }
 
 impl crate::Ruleset for ExprRuleset {
     fn analyzers(&self) -> Vec<Arc<dyn Analyzer>> {
-        self.analyzer.clone()
+        self.analyzers.clone()
     }
 
     fn matches(&self, info: &crate::StreamInfo) -> crate::MatchResult {
@@ -151,7 +151,7 @@ pub fn compile_expr_rules(
     ExprRuleset {
         engine,
         rules: compiled_rules,
-        analyzer: anal.into_values().collect(),
+        analyzers: anal.into_values().collect(),
     }
 }
 
