@@ -1,4 +1,4 @@
-//!
+//! Utils used in the engine crate.
 //!
 
 use nt_analyzer::{self, CombinedPropMap, PropMap, PropUpdate, PropUpdateType};
