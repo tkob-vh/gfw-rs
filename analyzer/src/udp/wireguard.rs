@@ -66,8 +66,12 @@ impl Analyzer for WireGuardAnalyzer {
         "wireguard"
     }
 
-    fn limit(&self) -> u32 {
+    fn limit(&self) -> i32 {
         0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
