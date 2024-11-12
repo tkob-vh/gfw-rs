@@ -2,6 +2,7 @@ use nt_analyzer::Analyzer;
 use nt_modifier::Instance;
 use serde::Deserialize;
 use std::fmt;
+use std::net::IpAddr;
 use std::sync::Arc;
 
 pub mod expr_rule;
@@ -24,6 +25,7 @@ impl fmt::Display for Protocol {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Action {
+    Maybe,
     Allow,
     Block,
     Drop,
@@ -33,11 +35,11 @@ pub enum Action {
 pub struct StreamInfo {
     pub id: i64,
     pub protocol: Protocol,
-    pub src_ip: String,
+    pub src_ip: IpAddr,
     pub src_port: u16,
-    pub dst_ip: String,
+    pub dst_ip: IpAddr,
     pub dst_port: u16,
-    pub props: nt_analyzer::CombinePropMap,
+    pub props: nt_analyzer::CombinedPropMap,
 }
 
 pub struct MatchResult {
