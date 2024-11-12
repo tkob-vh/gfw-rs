@@ -13,8 +13,12 @@ impl Analyzer for HTTPAnalyzer {
         "http"
     }
 
-    fn limit(&self) -> u32 {
+    fn limit(&self) -> i32 {
         8192
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

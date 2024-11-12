@@ -6,10 +6,10 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
-use std::{net::IpAddr, rc::Rc};
+use std::{any::Any, net::IpAddr, rc::Rc};
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
-pub trait Analyzer {
+pub trait Analyzer: Any {
     /// Get the name of the analyzer.
     ///
     /// # Returns
@@ -29,8 +29,11 @@ pub trait Analyzer {
     ///
     /// # Returns
     ///
-    /// u32: the byte limit for this analyzer.
-    fn limit(&self) -> u32;
+    /// i32: the byte limit for this analyzer.
+    fn limit(&self) -> i32;
+
+    /// Enable downcast_ref method.
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// The `TCPAnalyzer` trait extends the `Analyzer` trait for TCP-specific analysis.
@@ -150,7 +153,7 @@ pub trait UDPStream {
 pub type PropMap = std::collections::HashMap<String, Rc<dyn std::any::Any>>;
 
 /// Combined Property Map.
-pub type CombinePropMap = std::collections::HashMap<String, PropMap>;
+pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
 /// The `PropUpdateType` enum defines the types of property updates that can occur.
 #[derive(PartialEq, Debug)]
@@ -186,8 +189,12 @@ mod tests {
             "DummyAnalyzer"
         }
 
-        fn limit(&self) -> u32 {
+        fn limit(&self) -> i32 {
             1000
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
         }
     }
 
@@ -217,8 +224,12 @@ mod tests {
             "DummyTCPAnalyzer"
         }
 
-        fn limit(&self) -> u32 {
+        fn limit(&self) -> i32 {
             1000
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
         }
     }
 
@@ -247,8 +258,12 @@ mod tests {
             "DummyUDPAnalyzer"
         }
 
-        fn limit(&self) -> u32 {
+        fn limit(&self) -> i32 {
             1000
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
         }
     }
 

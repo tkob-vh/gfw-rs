@@ -39,8 +39,12 @@ impl Analyzer for DNSAnalyzer {
 
     /// DNS is a stateless protocol, with unlimited amount of back-and-forth exchanges.
     /// Don't limit it here.
-    fn limit(&self) -> u32 {
+    fn limit(&self) -> i32 {
         0
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
