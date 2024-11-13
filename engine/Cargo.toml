@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bytes = "1.8.0"
+lru = "0.12.5"
 nt-analyzer.workspace = true
 nt-io.workspace = true
+nt-modifier.workspace = true
 nt-ruleset.workspace = true
 pnet.workspace = true
 rs-snowflake = "0.6.0"
