@@ -101,10 +101,10 @@ impl TCPStreamFactory {
         };
 
         // Get the ruleset from the tcp stream factory.
-        let ruleset = self.ruleset.read().await;
+        let rs = self.ruleset.read().await;
 
         // Get the analyzers and convert them to tcp analyzers.
-        let analyzers = ruleset.analyzers();
+        let analyzers = rs.analyzers();
         let tcp_analyzers = analyzer_to_tcp_analyzers(&analyzers);
 
         // Create tcp stream entries for each tcp analyzer
@@ -126,7 +126,7 @@ impl TCPStreamFactory {
         Some(TCPStreamEngine {
             info,
             virgin: true,
-            ruleset: ruleset.deref().clone(),
+            ruleset: rs.deref().clone(),
             active_entries: entries,
             done_entries: Vec::new(),
             last_verdict: TCPVerdict::Accept,
@@ -323,7 +323,6 @@ impl TCPStreamEngine {
         }
 
         self.done_entries.append(&mut self.active_entries);
-        self.active_entries.clear();
     }
 }
 
