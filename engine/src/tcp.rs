@@ -1,21 +1,24 @@
+//! TCP Stream Management Module
+//!
 //! This module provides functionality for handling TCP streams, including
 //! creating new TCP streams, processing TCP packets, and updating stream properties.
 
-use crate::utils::process_prop_update;
+use std::{net::IpAddr, num::NonZero, ops::Deref, sync::Arc, time::Duration};
 
-use pnet::packet::tcp::TcpPacket;
+use lru::LruCache;
+use pnet::packet::{tcp::MutableTcpPacket, Packet};
 use snafu::Whatever;
 use snowflake::SnowflakeIdGenerator;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use std::{net::IpAddr, ops::Deref, sync::Arc};
+use crate::utils::process_prop_update;
 
 /// TCPVerdict is a subset of io.Verdict for TCP streams.
 /// We don't allow modifying or dropping a single packet
 /// for TCP streams for now, as it doesn't make much sense.
 #[derive(Clone, Debug)]
-enum TCPVerdict {
+pub enum TCPVerdict {
     Accept,
     AcceptStream,
     DropStream,
@@ -33,15 +36,8 @@ impl Into<nt_io::Verdict> for TCPVerdict {
 
 /// TCPContext holds the current verdict and capture information for a TCP stream.
 pub struct TCPContext {
-    verdict: TCPVerdict,
-    capture_info: CaptureInfo,
-}
-
-/// CaptureInfo holds the timestamp and length of a captured packet.
-#[derive(Clone)]
-pub struct CaptureInfo {
-    timestamp: std::time::SystemTime,
-    length: u32,
+    pub verdict: TCPVerdict,
+    pub packet: Vec<u8>,
 }
 
 /// TCPStreamFactory is responsible for creating new TCP streams and updating the ruleset.
@@ -90,8 +86,8 @@ impl TCPStreamFactory {
         &mut self,
         src_ip: IpAddr,
         dst_ip: IpAddr,
-        tcp_packet: &'a TcpPacket<'a>,
-    ) -> Option<TCPStreamEngine> {
+        tcp_packet: &'a MutableTcpPacket<'a>,
+    ) -> Option<TCPStream> {
         // Generate a unique snowflake.
         let id = self.node.generate();
 
@@ -133,7 +129,7 @@ impl TCPStreamFactory {
             })
             .collect();
 
-        Some(TCPStreamEngine {
+        Some(TCPStream {
             info,
             virgin: true,
             ruleset: rs.deref().clone(),
@@ -152,7 +148,7 @@ impl TCPStreamFactory {
     /// # Returns
     ///
     /// A result indicating success or failure.
-    async fn update_ruleset(
+    pub async fn update_ruleset(
         &self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
     ) -> Result<(), Whatever> {
@@ -162,8 +158,131 @@ impl TCPStreamFactory {
     }
 }
 
+pub struct TCPStreamManager {
+    factory: TCPStreamFactory,
+    streams: LruCache<i32, TCPStreamValue>,
+    max_buffered_pages_total: usize,
+    max_buffered_pages_per_conn: usize,
+}
+
+impl TCPStreamManager {
+    /// Create a new TCPStreamManager.
+    ///
+    /// # Arguments
+    ///
+    /// * `factory` - The TCp stream factory.
+    /// * `max_buffered_pages_total` -
+    /// * `max_buffered_pages_per_conn` -
+    pub fn new(
+        factory: TCPStreamFactory,
+        max_buffered_pages_total: usize,
+        max_buffered_pages_per_conn: usize,
+    ) -> Self {
+        Self {
+            factory,
+            streams: LruCache::new(NonZero::new(max_buffered_pages_total).unwrap()),
+            max_buffered_pages_total,
+            max_buffered_pages_per_conn,
+        }
+    }
+
+    ///
+    pub async fn match_with_context<'a>(
+        &mut self,
+        stream_id: i32,
+        src_ip: IpAddr,
+        dst_ip: IpAddr,
+        tcp_packet: &'a mut MutableTcpPacket<'a>,
+        tcp_context: &mut TCPContext,
+    ) {
+        let mut reverse = false;
+        let src_port = tcp_packet.get_source();
+        let dst_port = tcp_packet.get_destination();
+
+        // Get the stream according to the stream_id.
+        if let Some(value) = self.streams.get_mut(&stream_id) {
+            let (matches, is_reverse) = value.matches(src_ip, dst_ip, src_port, dst_port);
+
+            if !matches {
+                // Stream ID exists but different flow - create a new stream.
+                value.stream.close_active_entries();
+                let new_stream = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await;
+                if let Some(stream) = new_stream {
+                    let value = TCPStreamValue {
+                        stream,
+                        src_ip,
+                        dst_ip,
+                        src_port,
+                        dst_port,
+                    };
+                    self.streams.put(stream_id, value);
+                }
+            } else {
+                reverse = is_reverse;
+            }
+        } else {
+            // Stream ID not exists, create a new stream.
+            if let Some(stream) = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await {
+                let value = TCPStreamValue {
+                    stream,
+                    src_ip,
+                    dst_ip,
+                    src_port,
+                    dst_port,
+                };
+                self.streams.put(stream_id, value);
+            }
+        }
+
+        // Stream ID not exists, create a new stream.
+        if let Some(value) = self.streams.get_mut(&stream_id) {
+            if value.stream.accept(tcp_packet, tcp_context) {
+                value
+                    .stream
+                    .reassemble(tcp_packet.payload(), reverse, tcp_context);
+            }
+        }
+    }
+
+    ///
+    pub fn flush_older_than(&mut self, timeout: Duration) -> (usize, usize) {
+        // TODO: Implement this function.
+        (0, 0)
+    }
+}
+
+struct TCPStreamValue {
+    stream: TCPStream,
+    src_ip: IpAddr,
+    dst_ip: IpAddr,
+    src_port: u16,
+    dst_port: u16,
+}
+
+impl TCPStreamValue {
+    fn matches(
+        &self,
+        src_ip: IpAddr,
+        dst_ip: IpAddr,
+        src_port: u16,
+        dst_port: u16,
+    ) -> (bool, bool) {
+        let forward = self.src_ip == src_ip
+            && self.dst_ip == dst_ip
+            && self.src_port == src_port
+            && self.dst_port == dst_port;
+
+        let reverse = self.src_ip == dst_ip
+            && self.dst_ip == src_ip
+            && self.src_port == dst_port
+            && self.dst_port == src_port;
+
+        (forward || reverse, reverse)
+    }
+}
+
 /// TCPStreamEngine processes TCP packets and updates stream properties.
-struct TCPStreamEngine {
+struct TCPStream {
     /// The stream info for the ruleset.
     info: nt_ruleset::StreamInfo,
 
@@ -182,7 +301,7 @@ struct TCPStreamEngine {
     last_verdict: TCPVerdict,
 }
 
-impl TCPStreamEngine {
+impl TCPStream {
     /// Accepts a TCP packet and updates the context verdict.
     ///
     /// # Arguments
@@ -194,7 +313,7 @@ impl TCPStreamEngine {
     ///
     /// A boolean indicating whether the packet is accepted.
     #[allow(unused_variables)]
-    fn accept(&self, tcp: &TcpPacket, context: &mut TCPContext) -> bool {
+    fn accept(&self, tcp: &MutableTcpPacket, context: &mut TCPContext) -> bool {
         // Make sure every stream matches against the ruleset at least once,
         // even if there are no active entries, as the ruleset may have built-in
         // properties that need to be matched.
@@ -227,7 +346,7 @@ impl TCPStreamEngine {
         // First pass: process entries and collect indices to remove
         for (i, entry) in self.active_entries.iter_mut().enumerate() {
             let (update, close_update, done) =
-                TCPStreamEngine::feed_entry(entry, reverse, start, end, skip, data);
+                TCPStream::feed_entry(entry, reverse, start, end, skip, data);
 
             let up1 = process_prop_update(&mut self.info.props, &entry.name, update);
             let up2 = process_prop_update(&mut self.info.props, &entry.name, close_update);

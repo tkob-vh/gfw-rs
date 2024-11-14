@@ -15,7 +15,7 @@ use tracing::{error, info};
 
 use crate::utils::process_prop_update;
 
-/// udpVerdict is a subset of io.Verdict for UDP streams.
+/// UDPVerdict is a subset of io.Verdict for UDP streams.
 /// For UDP, we support all verdicts.
 #[derive(Clone, Debug)]
 pub enum UDPVerdict {
@@ -91,7 +91,7 @@ impl UDPStreamFactory {
         src_ip: IpAddr,
         dst_ip: IpAddr,
         udp_packet: &'a MutableUdpPacket<'a>,
-    ) -> Option<UDPStreamEngine> {
+    ) -> Option<UDPStream> {
         // Generate a unique snowflake.
         let id = self.node.generate();
 
@@ -133,7 +133,7 @@ impl UDPStreamFactory {
             })
             .collect();
 
-        Some(UDPStreamEngine {
+        Some(UDPStream {
             info,
             virgin: true,
             ruleset: rs.deref().clone(),
@@ -245,6 +245,7 @@ impl UDPStreamManager {
             }
         }
 
+        // Handle the packet in the stream.
         if let Some(value) = self.streams.get_mut(&stream_id) {
             if value.stream.accept(udp_packet, reverse, udp_context) {
                 value.stream.feed(udp_packet, reverse, udp_context);
@@ -255,7 +256,7 @@ impl UDPStreamManager {
 
 /// The value corresponding to the key in the LruCache.
 struct UDPStreamValue {
-    stream: UDPStreamEngine,
+    stream: UDPStream,
     src_ip: IpAddr,
     dst_ip: IpAddr,
     src_port: u16,
@@ -297,8 +298,9 @@ impl UDPStreamValue {
 }
 
 /// Engine for processing UDP streams.
-pub struct UDPStreamEngine {
+pub struct UDPStream {
     /// The stream info for the ruleset.
+    /// Such as id, protocal, address, port, and PropUpdate.
     info: nt_ruleset::StreamInfo,
 
     /// True if no packets have been processed
@@ -316,7 +318,7 @@ pub struct UDPStreamEngine {
     last_verdict: UDPVerdict,
 }
 
-impl UDPStreamEngine {
+impl UDPStream {
     /// Checks if the stream accepts the given packet.
     ///
     /// # Arguments
@@ -362,7 +364,7 @@ impl UDPStreamEngine {
         // First pass: process entries and collect indices to remove
         for (i, entry) in self.active_entries.iter_mut().enumerate() {
             let (update, close_update, done) =
-                UDPStreamEngine::feed_entry(entry, reverse, udp_packet.payload());
+                UDPStream::feed_entry(entry, reverse, udp_packet.payload());
 
             let up1 = process_prop_update(&mut self.info.props, &entry.name, update);
             let up2 = process_prop_update(&mut self.info.props, &entry.name, close_update);
@@ -494,6 +496,8 @@ impl UDPStreamEngine {
 /// Entry for a UDP stream.
 struct UDPStreamEntry {
     name: String,
+
+    /// The stream in crate analyzer.
     stream: Box<dyn nt_analyzer::UDPStream>,
     has_limit: bool,
     quota: i32,
