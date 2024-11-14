@@ -21,6 +21,16 @@ enum TCPVerdict {
     DropStream,
 }
 
+impl Into<nt_io::Verdict> for TCPVerdict {
+    fn into(self) -> nt_io::Verdict {
+        match self {
+            TCPVerdict::Accept => nt_io::Verdict::Accept,
+            TCPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
+            TCPVerdict::DropStream => nt_io::Verdict::DropStream,
+        }
+    }
+}
+
 /// TCPContext holds the current verdict and capture information for a TCP stream.
 pub struct TCPContext {
     verdict: TCPVerdict,
