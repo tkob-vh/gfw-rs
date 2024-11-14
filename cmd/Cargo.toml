@@ -9,3 +9,4 @@ serde_yaml.workspace = true
 tokio.workspace = true
 clap.workspace = true
 nt-ruleset.workspace = true
+serde-aux.workspace = true

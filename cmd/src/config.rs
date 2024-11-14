@@ -1,6 +1,7 @@
 //! Configuration module for parsing YAML configuration files.
 
 use serde::Deserialize;
+use serde_aux::field_attributes::deserialize_number_from_string;
 use serde_yaml;
 use std::error::Error;
 use tokio::fs::File;
@@ -27,13 +28,13 @@ pub struct CliConfig {
 #[derive(Deserialize, Debug)]
 pub struct CliConfigIO {
     /// Size of the queue used in IO operations.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub queue_size: u32,
     /// Size of the receive buffer in bytes.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub rcv_buf: i32,
     /// Size of the send buffer in bytes.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub snd_buf: i32,
     /// Enables or disables local mode.
     #[serde(default)]
@@ -55,22 +56,22 @@ pub struct CliConfigReplay {
 #[derive(Deserialize, Debug)]
 pub struct CliConfigWorkers {
     /// Number of worker threads.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub count: i32,
     /// Size of the queue for each worker.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub queue_size: i32,
     /// Maximum number of buffered pages across all TCP connections.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_max_buffered_pages_total: i32,
     /// Maximum number of buffered pages per TCP connection.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_max_buffered_pages_per_conn: i32,
     /// TCP timeout duration, the unit is 's'.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_timeout: u64,
     /// Maximum number of UDP streams.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub udp_max_streams: i32,
 }
 

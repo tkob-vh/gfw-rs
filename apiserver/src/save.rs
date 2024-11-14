@@ -1,4 +1,5 @@
-use axum::{routing::post, Router};
+use axum::{routing::post, Json, Router};
+use nt_cmd::config::CliConfig;
 
 pub async fn create_router() -> Router {
     Router::new()
@@ -6,7 +7,8 @@ pub async fn create_router() -> Router {
         .route("/save/rules", post(save_rules))
 }
 
-async fn save_config() -> String {
+async fn save_config(Json(config): Json<CliConfig>) -> String {
+    println!("{:?}", config);
     "save config".to_string()
 }
 

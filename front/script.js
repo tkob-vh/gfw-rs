@@ -32,19 +32,19 @@ function loadAccordionState() {
 function saveConfig() {
     const config = {
         io: {
-            queueSize: document.getElementById('queue_size').value,
-            rcvBuf: document.getElementById('rcv_buf').value,
-            sndBuf: document.getElementById('snd_buf').value,
+            queue_size: document.getElementById('queue_size').value,
+            rcv_buf: document.getElementById('rcv_buf').value,
+            snd_buf: document.getElementById('snd_buf').value,
             local: document.getElementById('local').checked,
             rst: document.getElementById('rst').checked
         },
         workers: {
             count: document.getElementById('workers_count').value,
-            queueSize: document.getElementById('workers_queue_size').value,
-            tcpMaxBufferedPagesTotal: document.getElementById('tcp_max_buffered_pages_total').value,
-            tcpMaxBufferedPagesPerConn: document.getElementById('tcp_max_buffered_pages_per_conn').value,
-            tcpTimeout: document.getElementById('tcp_timeout').value,
-            udpMaxStreams: document.getElementById('udp_max_streams').value
+            queue_size: document.getElementById('workers_queue_size').value,
+            tcp_max_buffered_pages_total: document.getElementById('tcp_max_buffered_pages_total').value,
+            tcp_max_buffered_pages_per_conn: document.getElementById('tcp_max_buffered_pages_per_conn').value,
+            tcp_timeout: document.getElementById('tcp_timeout').value,
+            udp_max_streams: document.getElementById('udp_max_streams').value
         },
         ruleset: {
             geoip: document.getElementById('geoip').value,
@@ -68,14 +68,12 @@ function saveConfig() {
     })
         .then(response => {
             if (response.ok) {
-                return response.json();
+                alert('保存配置成功');
+            } else if (response.status === 422){
+                alert('保存配置失败: 配置不全');
             } else {
-                throw new Error('网络响应不是OK');
+                throw new Error('网络响应错误: '+response.status);
             }
-        })
-        .then(data => {
-            console.log('服务器返回:', data);
-            alert('配置已保存');
         })
         .catch(error => {
             console.error('保存配置失败:', error);
@@ -87,17 +85,17 @@ function saveConfig() {
 function loadConfig() {
     const config = JSON.parse(localStorage.getItem('config'));
     if (config) {
-        document.getElementById('queue_size').value = config.io.queueSize;
-        document.getElementById('rcv_buf').value = config.io.rcvBuf;
-        document.getElementById('snd_buf').value = config.io.sndBuf;
+        document.getElementById('queue_size').value = config.io.queue_size;
+        document.getElementById('rcv_buf').value = config.io.rcv_buf;
+        document.getElementById('snd_buf').value = config.io.snd_buf;
         document.getElementById('local').checked = config.io.local;
         document.getElementById('rst').checked = config.io.rst;
         document.getElementById('workers_count').value = config.workers.count;
-        document.getElementById('workers_queue_size').value = config.workers.queueSize;
-        document.getElementById('tcp_max_buffered_pages_total').value = config.workers.tcpMaxBufferedPagesTotal;
-        document.getElementById('tcp_max_buffered_pages_per_conn').value = config.workers.tcpMaxBufferedPagesPerConn;
-        document.getElementById('tcp_timeout').value = config.workers.tcpTimeout;
-        document.getElementById('udp_max_streams').value = config.workers.udpMaxStreams;
+        document.getElementById('workers_queue_size').value = config.workers.queue_size;
+        document.getElementById('tcp_max_buffered_pages_total').value = config.workers.tcp_max_buffered_pages_total;
+        document.getElementById('tcp_max_buffered_pages_per_conn').value = config.workers.tcp_max_buffered_pages_per_conn;
+        document.getElementById('tcp_timeout').value = config.workers.tcp_timeout;
+        document.getElementById('udp_max_streams').value = config.workers.udp_max_streams;
         document.getElementById('geoip').value = config.ruleset.geoip;
         document.getElementById('geosite').value = config.ruleset.geosite;
         document.getElementById('realtime').checked = config.replay.realtime;
