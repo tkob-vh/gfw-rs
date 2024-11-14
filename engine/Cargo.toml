@@ -11,6 +11,7 @@ nt-io.workspace = true
 nt-modifier.workspace = true
 nt-ruleset.workspace = true
 pnet.workspace = true
+rhai.workspace = true
 rs-snowflake = "0.6.0"
 snafu.workspace = true
 tokio.workspace = true
