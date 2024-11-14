@@ -9,7 +9,6 @@
 </head>
 
 <body>
-
     <div class="container">
         <h1>配置与规则管理</h1>
 
@@ -17,24 +16,23 @@
             <!-- IO Configuration -->
             <div class="accordion-item">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
-                    IO Configuration
+                    <span class="accordion-title">IO 配置</span>
                 </button>
                 <div class="accordion-body">
-                    <!-- Input fields for IO configuration -->
                     <div class="input-field">
-                        <label for="queue_size">Queue Size:</label>
+                        <label for="queue_size">队列大小:</label>
                         <input type="number" id="queue_size" value="1024">
                     </div>
                     <div class="input-field">
-                        <label for="rcv_buf">Receive Buffer:</label>
+                        <label for="rcv_buf">接收缓冲区:</label>
                         <input type="number" id="rcv_buf" value="4194304">
                     </div>
                     <div class="input-field">
-                        <label for="snd_buf">Send Buffer:</label>
+                        <label for="snd_buf">发送缓冲区:</label>
                         <input type="number" id="snd_buf" value="4194304">
                     </div>
                     <div class="input-field">
-                        <label for="local">Local:</label>
+                        <label for="local">本地:</label>
                         <input type="checkbox" id="local" checked>
                     </div>
                     <div class="input-field">
@@ -47,32 +45,31 @@
             <!-- Workers Configuration -->
             <div class="accordion-item">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
-                    Workers Configuration
+                    <span class="accordion-title">Workers 配置</span>
                 </button>
                 <div class="accordion-body">
-                    <!-- Input fields for Workers configuration -->
                     <div class="input-field">
-                        <label for="workers_count">Count:</label>
+                        <label for="workers_count">工作线程数:</label>
                         <input type="number" id="workers_count" value="4">
                     </div>
                     <div class="input-field">
-                        <label for="workers_queue_size">Queue Size:</label>
+                        <label for="workers_queue_size">工作队列大小:</label>
                         <input type="number" id="workers_queue_size" value="64">
                     </div>
                     <div class="input-field">
-                        <label for="tcp_max_buffered_pages_total">TCP Max Buffered Pages Total:</label>
+                        <label for="tcp_max_buffered_pages_total">TCP最大缓存页面总数:</label>
                         <input type="number" id="tcp_max_buffered_pages_total" value="65536">
                     </div>
                     <div class="input-field">
-                        <label for="tcp_max_buffered_pages_per_conn">TCP Max Buffered Pages Per Connection:</label>
+                        <label for="tcp_max_buffered_pages_per_conn">每连接最大缓存页面数:</label>
                         <input type="number" id="tcp_max_buffered_pages_per_conn" value="16">
                     </div>
                     <div class="input-field">
-                        <label for="tcp_timeout">TCP Timeout:</label>
+                        <label for="tcp_timeout">TCP超时 (秒):</label>
                         <input type="number" id="tcp_timeout" value="600">
                     </div>
                     <div class="input-field">
-                        <label for="udp_max_streams">UDP Max Streams:</label>
+                        <label for="udp_max_streams">UDP最大流数:</label>
                         <input type="number" id="udp_max_streams" value="4096">
                     </div>
                 </div>
@@ -81,16 +78,15 @@
             <!-- Ruleset Configuration -->
             <div class="accordion-item">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
-                    Ruleset Configuration
+                    <span class="accordion-title">规则集配置</span>
                 </button>
                 <div class="accordion-body">
-                    <!-- Input fields for Ruleset configuration -->
                     <div class="input-field">
-                        <label for="geoip">GeoIP Path:</label>
+                        <label for="geoip">GeoIP路径:</label>
                         <input type="text" id="geoip" value="/path/to/geoip">
                     </div>
                     <div class="input-field">
-                        <label for="geosite">GeoSite Path:</label>
+                        <label for="geosite">GeoSite路径:</label>
                         <input type="text" id="geosite" value="/path/to/geosite">
                     </div>
                 </div>
@@ -99,12 +95,11 @@
             <!-- Replay Configuration -->
             <div class="accordion-item">
                 <button class="accordion-header" onclick="toggleAccordion(this)">
-                    Replay Configuration
+                    <span class="accordion-title">回放配置</span>
                 </button>
                 <div class="accordion-body">
-                    <!-- Input fields for Replay configuration -->
                     <div class="input-field">
-                        <label for="realtime">Realtime:</label>
+                        <label for="realtime">实时回放:</label>
                         <input type="checkbox" id="realtime">
                     </div>
                 </div>
@@ -112,12 +107,9 @@
             <button class="button button-save" onclick="saveConfig()">保存配置</button>
         </div>
 
-        <!-- 规则部分 -->
         <div class="rules-section">
             <h2>规则</h2>
-            <div id="rules-container">
-                <!-- 动态添加规则的区域 -->
-            </div>
+            <div id="rules-container"></div>
             <button class="button button-add" onclick="addRule()">+ 增加规则</button>
             <button class="button button-save" onclick="saveRules()">保存规则</button>
         </div>
