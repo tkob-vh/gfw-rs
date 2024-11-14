@@ -18,7 +18,7 @@ use crate::utils::process_prop_update;
 /// udpVerdict is a subset of io.Verdict for UDP streams.
 /// For UDP, we support all verdicts.
 #[derive(Clone, Debug)]
-enum UDPVerdict {
+pub enum UDPVerdict {
     Accept,
     AcceptModify,
     AcceptStream,
@@ -26,15 +26,27 @@ enum UDPVerdict {
     DropStream,
 }
 
+impl Into<nt_io::Verdict> for UDPVerdict {
+    fn into(self) -> nt_io::Verdict {
+        match self {
+            UDPVerdict::Accept => nt_io::Verdict::Accept,
+            UDPVerdict::AcceptModify => nt_io::Verdict::AcceptModify,
+            UDPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
+            UDPVerdict::Drop => nt_io::Verdict::Drop,
+            UDPVerdict::DropStream => nt_io::Verdict::DropStream,
+        }
+    }
+}
+
 /// Context for UDP processing, including the verdict and the packet.
 pub struct UDPContext {
-    verdict: UDPVerdict,
-    packet: BytesMut,
+    pub verdict: UDPVerdict,
+    pub packet: BytesMut,
 }
 
 /// Factory for creating UDP streams.
 pub struct UDPStreamFactory {
-    worker_id: u32,
+    worker_id: i32,
 
     /// https://en.wikipedia.org/wiki/Snowflake_ID
     node: snowflake::SnowflakeIdGenerator,
@@ -52,7 +64,7 @@ impl UDPStreamFactory {
     /// * `node` - The Snowflake ID generator.
     /// * `ruleset` - The ruleset for the UDP stream entries.
     pub fn new(
-        worker_id: u32,
+        worker_id: i32,
         node: snowflake::SnowflakeIdGenerator,
         ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
     ) -> Self {
@@ -153,7 +165,7 @@ impl UDPStreamFactory {
 /// Manager for UDP streams.
 pub struct UDPStreamManager {
     factory: UDPStreamFactory,
-    streams: LruCache<u32, UDPStreamValue>,
+    streams: LruCache<i32, UDPStreamValue>,
 }
 
 impl UDPStreamManager {
@@ -187,7 +199,7 @@ impl UDPStreamManager {
     /// * `udp_context` - The UDP context.
     pub async fn match_with_context<'a>(
         &mut self,
-        stream_id: u32,
+        stream_id: i32,
         src_ip: IpAddr,
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
@@ -241,7 +253,7 @@ impl UDPStreamManager {
     }
 }
 
-/// Value representing a UDP stream.
+/// The value corresponding to the key in the LruCache.
 struct UDPStreamValue {
     stream: UDPStreamEngine,
     src_ip: IpAddr,
