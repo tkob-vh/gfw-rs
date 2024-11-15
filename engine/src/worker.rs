@@ -1,4 +1,5 @@
-//!
+//! This module defines the `Worker` struct and its associated functionality for handling TCP and UDP packets.
+//! It includes the creation of workers, packet handling, and ruleset updates.
 
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -53,6 +54,15 @@ pub struct Worker {
 }
 
 impl Worker {
+    /// Creates a new `Worker` instance with the given configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - A `WorkerConfig` instance containing the configuration for the worker.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the `Worker` instance and an `mpsc::Sender` for sending `WorkerPacket`s.
     pub fn new(config: WorkerConfig) -> Result<(Self, mpsc::Sender<WorkerPacket>), Whatever> {
         // TODO: Modify the logic of this generation.
         let node = SnowflakeIdGenerator::new(config.id, config.id);
@@ -99,6 +109,11 @@ impl Worker {
         ))
     }
 
+    /// Runs the worker, processing incoming packets and flushing TCP streams at regular intervals.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub async fn run(&mut self) -> Result<(), Whatever> {
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
@@ -121,6 +136,15 @@ impl Worker {
         Ok(())
     }
 
+    /// Updates the ruleset used by the worker.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_ruleset` - A new ruleset to be used by the worker.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure.
     pub async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
@@ -137,6 +161,16 @@ impl Worker {
             .await
     }
 
+    /// Handles an incoming packet, determining its type (TCP/UDP) and processing it accordingly.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream_id` - The ID of the stream the packet belongs to.
+    /// * `packet_data` - The raw packet data.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the verdict and an optional modified packet.
     async fn handle_packet(
         &mut self,
         stream_id: i32,
@@ -230,6 +264,18 @@ impl Worker {
         (nt_io::Verdict::Accept, None)
     }
 
+    /// Handles a TCP packet.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream_id` - The ID of the stream the packet belongs to.
+    /// * `src_ip` - The source IP address.
+    /// * `dst_ip` - The destination IP address.
+    /// * `tcp_packet` - The TCP packet to be processed.
+    ///
+    /// # Returns
+    ///
+    /// The verdict for the packet.
     async fn handle_tcp<'a>(
         &mut self,
         stream_id: i32,
@@ -249,12 +295,29 @@ impl Worker {
         tcp_context.verdict.into()
     }
 
+    /// Flushes TCP streams that are older than the specified timeout.
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - The duration after which TCP streams should be flushed.
     async fn flush_tcp(&mut self, timeout: Duration) {
         let (flushed, closed) = self.tcp_stream_manager.flush_older_than(timeout);
-
+        //TODO: To be implemented.
         info!("TCP flush completed");
     }
 
+    /// Handles a UDP packet.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream_id` - The ID of the stream the packet belongs to.
+    /// * `src_ip` - The source IP address.
+    /// * `dst_ip` - The destination IP address.
+    /// * `udp_packet` - The UDP packet to be processed.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the verdict and an optional modified packet.
     async fn handle_udp<'a>(
         &mut self,
         stream_id: i32,
@@ -282,6 +345,7 @@ impl Worker {
     }
 }
 
+/// Configuration for creating a `Worker` instance.
 pub struct WorkerConfig {
     pub id: i32,
     pub chan_size: u32,
@@ -296,6 +360,7 @@ pub struct WorkerConfig {
 }
 
 impl Default for WorkerConfig {
+    /// Provides a default configuration for `WorkerConfig`.
     fn default() -> Self {
         Self {
             id: 0,
