@@ -508,7 +508,7 @@ impl PacketIO for NFQueuePacketIO {
 
                 let packet = NFQueuePacket {
                     //id: packet_id,
-                    stream_id: ct.map(|c| c.get_id()).unwrap_or(0),
+                    stream_id: ct.map(|c| c.get_id()).unwrap_or(0) as i32,
                     timestamp: msg.get_timestamp().unwrap_or_else(SystemTime::now),
                     data: payload.to_vec(),
                     msg,
@@ -523,7 +523,7 @@ impl PacketIO for NFQueuePacketIO {
         Ok(())
     }
 
-    async fn set_verdict(
+    fn set_verdict(
         &self,
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,
@@ -627,15 +627,15 @@ impl PacketIO for NFQueuePacketIO {
 }
 
 struct NFQueuePacket {
-    //id: u32,
-    stream_id: u32,
+    //id: i32,
+    stream_id: i32,
     timestamp: SystemTime,
     data: Vec<u8>,
     msg: Message,
 }
 
 impl Packet for NFQueuePacket {
-    fn stream_id(&self) -> u32 {
+    fn stream_id(&self) -> i32 {
         self.stream_id
     }
 
