@@ -14,12 +14,14 @@
 //! - `parse_dns_message`: Parses a DNS message and returns a property map.
 //! - `dns_rr_to_prop_map`: Converts a DNS response record to a property map.
 
-use crate::*;
+use std::cell::RefCell;
+use std::sync::Arc;
+
 use bytes::{Buf, BytesMut};
 use pnet::packet::dns;
-use std::cell::RefCell;
-use std::rc::Rc;
 use tracing::error;
+
+use crate::*;
 
 // The max number of consecutive invalid dns packets allowed.
 // To allow non-DNS UDP traffic to get offloaded,
@@ -118,14 +120,14 @@ pub struct DNSTCPStream {
     /// If the prop_map has been updated.
     req_updated: bool,
     /// The linear state machine which process the message with the methods in field `steps`.
-    req_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
+    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
     /// Whether the request message has been processed.
     req_done: bool,
 
     resp_buf: BytesMut,
     resp_map: PropMap,
     resp_updated: bool,
-    resp_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
+    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
     resp_done: bool,
 
     /// The length of the request message.
@@ -135,13 +137,13 @@ pub struct DNSTCPStream {
 
 impl DNSTCPStream {
     /// Initialize the DNSTCPStream.
-    /// We combine Rc and RefCell to allow multi-muttable owners.
+    /// We combine Arc and RefCell to allow multi-muttable owners.
     fn new() -> Self {
         Self {
             req_buf: BytesMut::new(),
             req_map: PropMap::new(),
             req_updated: false,
-            req_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_req_message_length()),
                 Box::new(|s| s.get_req_message()),
             ]))),
@@ -150,7 +152,7 @@ impl DNSTCPStream {
             resp_buf: BytesMut::new(),
             resp_map: PropMap::new(),
             resp_updated: false,
-            resp_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_resp_message_length()),
                 Box::new(|s| s.get_resp_message()),
             ]))),
@@ -362,21 +364,21 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
     // Extract the properties from the dns packet and store them in the hashmap.
 
     // Process the flags:
-    prop_map.insert("id".to_string(), Rc::new(dns_packet.get_id()));
-    prop_map.insert("qr".to_string(), Rc::new(dns_packet.get_is_response()));
-    prop_map.insert("opcode".to_string(), Rc::new(dns_packet.get_opcode()));
-    prop_map.insert("aa".to_string(), Rc::new(dns_packet.get_is_authoriative()));
-    prop_map.insert("tc".to_string(), Rc::new(dns_packet.get_is_truncated()));
+    prop_map.insert("id".to_string(), Arc::new(dns_packet.get_id()));
+    prop_map.insert("qr".to_string(), Arc::new(dns_packet.get_is_response()));
+    prop_map.insert("opcode".to_string(), Arc::new(dns_packet.get_opcode()));
+    prop_map.insert("aa".to_string(), Arc::new(dns_packet.get_is_authoriative()));
+    prop_map.insert("tc".to_string(), Arc::new(dns_packet.get_is_truncated()));
     prop_map.insert(
         "rd".to_string(),
-        Rc::new(dns_packet.get_is_recursion_desirable()),
+        Arc::new(dns_packet.get_is_recursion_desirable()),
     );
     prop_map.insert(
         "ra".to_string(),
-        Rc::new(dns_packet.get_is_recursion_available()),
+        Arc::new(dns_packet.get_is_recursion_available()),
     );
-    prop_map.insert("z".to_string(), Rc::new(dns_packet.get_zero_reserved()));
-    prop_map.insert("rcode".to_string(), Rc::new(dns_packet.get_rcode()));
+    prop_map.insert("z".to_string(), Arc::new(dns_packet.get_zero_reserved()));
+    prop_map.insert("rcode".to_string(), Arc::new(dns_packet.get_rcode()));
 
     // Process the queries.
     if dns_packet.get_query_count() > 0 {
@@ -385,13 +387,13 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
         for (i, q) in dns_packet.get_queries_iter().enumerate() {
             prop_map_questions[i].insert(
                 "name".to_string(),
-                Rc::new(String::from_utf8(q.get_qname())),
+                Arc::new(String::from_utf8(q.get_qname())),
             );
-            prop_map_questions[i].insert("type".to_string(), Rc::new(q.get_qtype()));
-            prop_map_questions[i].insert("class".to_string(), Rc::new(q.get_qclass()));
+            prop_map_questions[i].insert("type".to_string(), Arc::new(q.get_qtype()));
+            prop_map_questions[i].insert("class".to_string(), Arc::new(q.get_qclass()));
         }
 
-        prop_map.insert("questions".to_string(), Rc::new(prop_map_questions));
+        prop_map.insert("questions".to_string(), Arc::new(prop_map_questions));
     }
 
     // Process the resourse records.
@@ -402,7 +404,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
             prop_map_answers[i] = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("answers".to_string(), Rc::new(prop_map_answers));
+        prop_map.insert("answers".to_string(), Arc::new(prop_map_answers));
     }
 
     if dns_packet.get_authority_rr_count() > 0 {
@@ -413,7 +415,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
             prop_map_authorities[i] = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("authorities".to_string(), Rc::new(prop_map_authorities));
+        prop_map.insert("authorities".to_string(), Arc::new(prop_map_authorities));
     }
 
     if dns_packet.get_additional_rr_count() > 0 {
@@ -424,7 +426,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
             prop_map_additionals[i] = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("additionals".to_string(), Rc::new(prop_map_additionals));
+        prop_map.insert("additionals".to_string(), Arc::new(prop_map_additionals));
     }
 
     Some(prop_map)
@@ -442,32 +444,32 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
 fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     let mut prop_map = PropMap::new();
 
-    prop_map.insert("name".to_string(), Rc::new(rr.get_name_tag().to_string()));
-    prop_map.insert("type".to_string(), Rc::new(rr.get_rtype()));
-    prop_map.insert("class".to_string(), Rc::new(rr.get_rclass()));
-    prop_map.insert("ttl".to_string(), Rc::new(rr.get_ttl()));
+    prop_map.insert("name".to_string(), Arc::new(rr.get_name_tag().to_string()));
+    prop_map.insert("type".to_string(), Arc::new(rr.get_rtype()));
+    prop_map.insert("class".to_string(), Arc::new(rr.get_rclass()));
+    prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl()));
 
     match rr.get_rtype() {
         dns::DnsTypes::A => {
-            prop_map.insert("a".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("a".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::AAAA => {
-            prop_map.insert("aaaa".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("aaaa".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::NS => {
-            prop_map.insert("ns".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("ns".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::CNAME => {
-            prop_map.insert("cname".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("cname".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::PTR => {
-            prop_map.insert("ptr".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("ptr".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::TXT => {
-            prop_map.insert("txt".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("txt".to_string(), Arc::new(rr.get_data()));
         }
         dns::DnsTypes::MX => {
-            prop_map.insert("mx".to_string(), Rc::new(rr.get_data()));
+            prop_map.insert("mx".to_string(), Arc::new(rr.get_data()));
         }
         _ => {}
     }
