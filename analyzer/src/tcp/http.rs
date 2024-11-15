@@ -1,9 +1,11 @@
 //! analyzer for tcp/http
-use crate::*;
-use bytes::BytesMut;
+
 use std::cell::RefCell;
-use std::rc::Rc;
-// use tracing::error;
+use std::sync::Arc;
+
+use bytes::BytesMut;
+
+use crate::*;
 
 /// HTTPAnalyzer is an analyzer for HTTP protocol.
 pub struct HTTPAnalyzer {}
@@ -34,13 +36,13 @@ pub struct HTTPStream {
     req_buf: BytesMut,
     req_map: PropMap,
     req_updated: bool,
-    req_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
+    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
     req_done: bool,
 
     resp_buf: BytesMut,
     resp_map: PropMap,
     resp_updated: bool,
-    resp_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
+    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
     resp_done: bool,
 }
 
@@ -50,7 +52,7 @@ impl HTTPStream {
             req_buf: BytesMut::new(),
             req_map: PropMap::new(),
             req_updated: false,
-            req_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_request_line()),
                 Box::new(|s| s.parse_request_headers()),
             ]))),
@@ -59,7 +61,7 @@ impl HTTPStream {
             resp_buf: BytesMut::new(),
             resp_map: PropMap::new(),
             resp_updated: false,
-            resp_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_response_line()),
                 Box::new(|s| s.parse_response_headers()),
             ]))),
@@ -91,9 +93,10 @@ impl HTTPStream {
             if !version.starts_with("HTTP/") {
                 return utils::lsm::LSMAction::Cancel;
             }
-            self.req_map.insert("method".to_string(), Rc::new(method));
-            self.req_map.insert("path".to_string(), Rc::new(path));
-            self.req_map.insert("version".to_string(), Rc::new(version));
+            self.req_map.insert("method".to_string(), Arc::new(method));
+            self.req_map.insert("path".to_string(), Arc::new(path));
+            self.req_map
+                .insert("version".to_string(), Arc::new(version));
             self.req_updated = true;
             self.req_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
@@ -115,8 +118,8 @@ impl HTTPStream {
                 return utils::lsm::LSMAction::Cancel;
             }
             self.resp_map
-                .insert("version".to_string(), Rc::new(version));
-            self.resp_map.insert("status".to_string(), Rc::new(status));
+                .insert("version".to_string(), Arc::new(version));
+            self.resp_map.insert("status".to_string(), Arc::new(status));
             self.resp_updated = true;
             self.resp_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
@@ -139,7 +142,7 @@ impl HTTPStream {
                 }
                 let key = String::from_utf8_lossy(parts[0]).trim().to_lowercase();
                 let value = String::from_utf8_lossy(parts[1]).trim().to_string();
-                header_map.insert(key, Rc::new(value));
+                header_map.insert(key, Arc::new(value));
             }
             (utils::lsm::LSMAction::Next, header_map)
         } else {
@@ -151,7 +154,7 @@ impl HTTPStream {
         let (action, header_map) = Self::parse_headers(&mut self.req_buf);
         if action == utils::lsm::LSMAction::Next {
             self.req_map
-                .insert("headers".to_string(), Rc::new(header_map));
+                .insert("headers".to_string(), Arc::new(header_map));
             self.req_updated = true;
         }
         action
@@ -161,7 +164,7 @@ impl HTTPStream {
         let (action, header_map) = Self::parse_headers(&mut self.resp_buf);
         if action == utils::lsm::LSMAction::Next {
             self.resp_map
-                .insert("headers".to_string(), Rc::new(header_map));
+                .insert("headers".to_string(), Arc::new(header_map));
             self.resp_updated = true;
         }
         action
@@ -237,7 +240,7 @@ impl TCPStream for HTTPStream {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, rc::Rc};
+    use std::{collections::HashMap, sync::Arc};
 
     use crate::{PropMap, TCPStream};
 
@@ -246,26 +249,26 @@ mod tests {
         let test_cases = vec![
             ("GET / HTTP/1.1\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Rc::new("GET".to_string()));
-                map.insert("path".to_string(), Rc::new("/".to_string()));
-                map.insert("version".to_string(), Rc::new("HTTP/1.1".to_string()));
-                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map.insert("method".to_string(), Arc::new("GET".to_string()));
+                map.insert("path".to_string(), Arc::new("/".to_string()));
+                map.insert("version".to_string(), Arc::new("HTTP/1.1".to_string()));
+                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
                 map
             }),
             ("POST /hello?a=1&b=2 HTTP/1.0\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Rc::new("POST".to_string()));
-                map.insert("path".to_string(), Rc::new("/hello?a=1&b=2".to_string()));
-                map.insert("version".to_string(), Rc::new("HTTP/1.0".to_string()));
-                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map.insert("method".to_string(), Arc::new("POST".to_string()));
+                map.insert("path".to_string(), Arc::new("/hello?a=1&b=2".to_string()));
+                map.insert("version".to_string(), Arc::new("HTTP/1.0".to_string()));
+                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
                 map
             }),
             ("DELETE /goodbye HTTP/2.0\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Rc::new("DELETE".to_string()));
-                map.insert("path".to_string(), Rc::new("/goodbye".to_string()));
-                map.insert("version".to_string(), Rc::new("HTTP/2.0".to_string()));
-                map.insert("headers".to_string(), Rc::new(crate::PropMap::new()));
+                map.insert("method".to_string(), Arc::new("DELETE".to_string()));
+                map.insert("path".to_string(), Arc::new("/goodbye".to_string()));
+                map.insert("version".to_string(), Arc::new("HTTP/2.0".to_string()));
+                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
                 map
             }),
         ];
@@ -302,13 +305,13 @@ mod tests {
     fn test_http_1() {
         let input = ("PUT /world HTTP/1.1\r\nContent-Length: 4\r\n\r\nbody", {
             let mut map = crate::PropMap::new();
-            map.insert("method".to_string(), Rc::new("PUT".to_string()));
-            map.insert("path".to_string(), Rc::new("/world".to_string()));
-            map.insert("version".to_string(), Rc::new("HTTP/1.1".to_string()));
+            map.insert("method".to_string(), Arc::new("PUT".to_string()));
+            map.insert("path".to_string(), Arc::new("/world".to_string()));
+            map.insert("version".to_string(), Arc::new("HTTP/1.1".to_string()));
             {
                 let mut headers = HashMap::new();
                 headers.insert("content-length".to_string(), "4".to_string());
-                map.insert("headers".to_string(), Rc::new(headers));
+                map.insert("headers".to_string(), Arc::new(headers));
             }
             map
         });
@@ -342,7 +345,7 @@ mod tests {
         let expected_headers = want.get("headers").unwrap();
         let headers = result_map.get("headers").unwrap();
 
-        // Extract the headers HashMap from Rc<dyn Any>
+        // Extract the headers HashMap from Arc<dyn Any>
         let result_headers = headers.downcast_ref::<PropMap>().unwrap();
         let expected_headers_map = expected_headers
             .downcast_ref::<HashMap<String, String>>()

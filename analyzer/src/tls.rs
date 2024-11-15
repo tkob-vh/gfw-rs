@@ -4,11 +4,12 @@
 //! the ClientHello and ServerHello messages. It also includes constants for various
 //! TLS record and handshake message types, as well as extension types.
 
+use std::sync::Arc;
+
 use bytes::{Buf, BytesMut};
 use tracing::error;
 
 use crate::PropMap;
-use std::rc::Rc;
 
 /// TLS record types.
 /// TLS record type for handshake messages.
@@ -107,8 +108,8 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
 
     // Version, random & session ID length combined are within 35 bytes,
     // so no need for bounds checking
-    prop_map.insert("version".to_string(), Rc::new(ch_buf.get_u16()));
-    prop_map.insert("random".to_string(), Rc::new(ch_buf.split_to(32)));
+    prop_map.insert("version".to_string(), Arc::new(ch_buf.get_u16()));
+    prop_map.insert("random".to_string(), Arc::new(ch_buf.split_to(32)));
 
     let session_id_len = ch_buf.get_u8();
     if ch_buf.len() < session_id_len as usize {
@@ -120,7 +121,7 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
     }
     prop_map.insert(
         "session".to_string(),
-        Rc::new(ch_buf.split_to(session_id_len as usize)),
+        Arc::new(ch_buf.split_to(session_id_len as usize)),
     );
 
     if ch_buf.len() < 2 {
@@ -142,7 +143,7 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
         ciphers.push(ch_buf.get_u16());
     }
 
-    prop_map.insert("ciphers".to_string(), Rc::new(ciphers));
+    prop_map.insert("ciphers".to_string(), Arc::new(ciphers));
 
     if ch_buf.is_empty() {
         error!("No enough data for compression methods length");
@@ -157,7 +158,7 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
     }
     prop_map.insert(
         "compression".to_string(),
-        Rc::new(ch_buf.split_to(compression_method_len as usize)),
+        Arc::new(ch_buf.split_to(compression_method_len as usize)),
     );
 
     if ch_buf.len() < 2 {
@@ -222,8 +223,8 @@ pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap>
     let mut prop_map = PropMap::new();
     // Version, random & session ID length combined are within 35 bytes,
     // so no need for bounds checking
-    prop_map.insert("version".to_string(), Rc::new(sh_buf.get_u16()));
-    prop_map.insert("random".to_string(), Rc::new(sh_buf.split_to(32)));
+    prop_map.insert("version".to_string(), Arc::new(sh_buf.get_u16()));
+    prop_map.insert("random".to_string(), Arc::new(sh_buf.split_to(32)));
     let session_id_len = sh_buf.get_u8();
 
     if sh_buf.len() < session_id_len as usize {
@@ -232,7 +233,7 @@ pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap>
     }
     prop_map.insert(
         "session".to_string(),
-        Rc::new(sh_buf.split_to(session_id_len as usize)),
+        Arc::new(sh_buf.split_to(session_id_len as usize)),
     );
 
     if sh_buf.len() < 2 {
@@ -240,14 +241,14 @@ pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap>
         return None;
     }
     let cipher_suite = sh_buf.get_u16();
-    prop_map.insert("cipher".to_string(), Rc::new(cipher_suite));
+    prop_map.insert("cipher".to_string(), Arc::new(cipher_suite));
 
     if sh_buf.is_empty() {
         error!("No enough data for compression method");
         return None;
     }
     let compression_method = sh_buf.get_u8();
-    prop_map.insert("compression".to_string(), Rc::new(compression_method));
+    prop_map.insert("compression".to_string(), Arc::new(compression_method));
 
     if sh_buf.len() < 2 {
         error!("No extensions, maybe possible");
@@ -332,7 +333,7 @@ pub fn parse_tls_extensions(
 
             prop_map.insert(
                 "sni".to_string(),
-                Rc::new(ext_data_buf.split_to(sni_len as usize)),
+                Arc::new(ext_data_buf.split_to(sni_len as usize)),
             );
         }
         EXT_ALPN => {
@@ -360,14 +361,14 @@ pub fn parse_tls_extensions(
                 alpn_list.extend(alpn);
             }
 
-            prop_map.insert("alpn".to_string(), Rc::new(alpn_list));
+            prop_map.insert("alpn".to_string(), Arc::new(alpn_list));
         }
         EXT_SUPPORTED_VERSIONS => {
             if ext_data_buf.len() == 2 {
                 // Server only selects one version
                 prop_map.insert(
                     "supported_versions".to_string(),
-                    Rc::new(ext_data_buf.get_u16()),
+                    Arc::new(ext_data_buf.get_u16()),
                 );
             } else {
                 // Client sends a list of versions
@@ -390,12 +391,12 @@ pub fn parse_tls_extensions(
                     versions.push(ver);
                 }
 
-                prop_map.insert("supported_versions".to_string(), Rc::new(versions));
+                prop_map.insert("supported_versions".to_string(), Arc::new(versions));
             }
         }
         EXT_ENCRYPTED_CLIENT_HELLO => {
             // We can't parse ECH for now, just set a flag
-            prop_map.insert("ech".to_string(), Rc::new(true));
+            prop_map.insert("ech".to_string(), Arc::new(true));
         }
         _ => {
             //info!(

@@ -6,10 +6,10 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
-use std::{any::Any, net::IpAddr, rc::Rc};
+use std::{any::Any, net::IpAddr, sync::Arc};
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
-pub trait Analyzer: Any {
+pub trait Analyzer: Any + Send + Sync {
     /// Get the name of the analyzer.
     ///
     /// # Returns
@@ -150,7 +150,7 @@ pub trait UDPStream {
 }
 
 /// Property Map for different kinds of packets. From String to the property.
-pub type PropMap = std::collections::HashMap<String, Rc<dyn std::any::Any>>;
+pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Send + Sync>>;
 
 /// Combined Property Map.
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
@@ -180,7 +180,6 @@ pub struct PropUpdate {
 mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-    use std::rc::Rc;
 
     struct DummyAnalyzer;
 
@@ -322,7 +321,7 @@ mod tests {
     #[test]
     fn test_prop_update() {
         let mut map = PropMap::new();
-        map.insert("key".to_string(), Rc::new("value".to_string()));
+        map.insert("key".to_string(), Arc::new("value".to_string()));
         let update = PropUpdate {
             update_type: PropUpdateType::Merge,
             map: map.clone(),

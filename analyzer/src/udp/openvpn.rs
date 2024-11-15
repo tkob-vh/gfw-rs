@@ -4,11 +4,13 @@
 //! It defines the `OpenVPNAnalyzer` struct which implements the `Analyzer`, `UDPAnalyzer`, and `TCPAnalyzer` traits.
 //! It also defines the `OpenVPNUDPStream` and `OpenVPNTCPStream` structs which implement the `UDPStream` and `TCPStream` traits respectively.
 
-use crate::*;
+use std::cell::RefCell;
+use std::sync::Arc;
+
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
-use std::cell::RefCell;
-use std::rc::Rc;
+
+use crate::*;
 
 // packet opcodes -- the V1 is intended to allow protocol changes in the future
 /// initial key from client, forget previous state
@@ -132,12 +134,12 @@ trait OpenVPNStream {
 struct OpenVPNUDPStream {
     /// If the prop_map has been updated.
     req_updated: bool,
-    req_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<OpenVPNUDPStream>>>,
+    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<OpenVPNUDPStream>>>,
     /// Whether the request message has been processed.
     req_done: bool,
 
     resp_updated: bool,
-    resp_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<OpenVPNUDPStream>>>,
+    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<OpenVPNUDPStream>>>,
     resp_done: bool,
 
     /// The number of received packets
@@ -164,14 +166,14 @@ impl OpenVPNUDPStream {
     fn new() -> Self {
         Self {
             req_updated: false,
-            req_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_ctl_hard_reset_client()),
                 Box::new(|s| s.parse_req()),
             ]))),
             req_done: false,
 
             resp_updated: false,
-            resp_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_ctl_hard_reset_server()),
                 Box::new(|s| s.parse_resp()),
             ]))),
@@ -330,8 +332,8 @@ impl UDPStream for OpenVPNUDPStream {
 
             if self.resp_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx.pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
+                prop_map.insert("rx.pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
+                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
                     map: prop_map,
@@ -347,8 +349,8 @@ impl UDPStream for OpenVPNUDPStream {
 
             if self.req_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
+                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
+                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
@@ -377,12 +379,12 @@ impl UDPStream for OpenVPNUDPStream {
 struct OpenVPNTCPStream {
     /// If the prop_map has been updated.
     req_updated: bool,
-    req_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<OpenVPNTCPStream>>>,
+    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<OpenVPNTCPStream>>>,
     /// Whether the request message has been processed.
     req_done: bool,
 
     resp_updated: bool,
-    resp_lsm: Rc<RefCell<utils::lsm::LinearStateMachine<OpenVPNTCPStream>>>,
+    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<OpenVPNTCPStream>>>,
     resp_done: bool,
 
     /// The number of received packets
@@ -408,14 +410,14 @@ impl OpenVPNTCPStream {
     fn new() -> Self {
         Self {
             req_updated: false,
-            req_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_ctl_hard_reset_client()),
                 Box::new(|s| s.parse_req()),
             ]))),
             req_done: false,
 
             resp_updated: false,
-            resp_lsm: Rc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_ctl_hard_reset_server()),
                 Box::new(|s| s.parse_resp()),
             ]))),
@@ -610,8 +612,8 @@ impl TCPStream for OpenVPNTCPStream {
 
             if self.resp_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
+                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
+                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
@@ -627,8 +629,8 @@ impl TCPStream for OpenVPNTCPStream {
 
             if self.req_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Rc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Rc::new(self.tx_pkt_cnt));
+                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
+                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Merge,
