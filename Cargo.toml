@@ -21,7 +21,7 @@ tracing-subscriber = "0.3"
 pnet = "0.35.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-rhai = "1.20.0"
+rhai = { version = "1.20.0", features = ["sync"] }
 snafu = "0.8"
 lazy_static = "1.5.0"
 serde_json = "1.0.132"

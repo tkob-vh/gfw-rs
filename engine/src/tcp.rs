@@ -161,8 +161,8 @@ impl TCPStreamFactory {
 pub struct TCPStreamManager {
     factory: TCPStreamFactory,
     streams: LruCache<i32, TCPStreamValue>,
-    max_buffered_pages_total: usize,
-    max_buffered_pages_per_conn: usize,
+    max_buffered_pages_total: u32,
+    max_buffered_pages_per_conn: u32,
 }
 
 impl TCPStreamManager {
@@ -175,12 +175,12 @@ impl TCPStreamManager {
     /// * `max_buffered_pages_per_conn` -
     pub fn new(
         factory: TCPStreamFactory,
-        max_buffered_pages_total: usize,
-        max_buffered_pages_per_conn: usize,
+        max_buffered_pages_total: u32,
+        max_buffered_pages_per_conn: u32,
     ) -> Self {
         Self {
             factory,
-            streams: LruCache::new(NonZero::new(max_buffered_pages_total).unwrap()),
+            streams: LruCache::new(NonZero::new(max_buffered_pages_total as usize).unwrap()),
             max_buffered_pages_total,
             max_buffered_pages_per_conn,
         }

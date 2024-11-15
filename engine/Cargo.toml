@@ -10,6 +10,7 @@ nt-analyzer.workspace = true
 nt-io.workspace = true
 nt-modifier.workspace = true
 nt-ruleset.workspace = true
+num_cpus = "1.16.0"
 pnet.workspace = true
 rhai.workspace = true
 rs-snowflake = "0.6.0"
