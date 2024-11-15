@@ -56,7 +56,7 @@ pub fn process_prop_update(
 mod tests {
     use super::*;
     use nt_analyzer::{CombinedPropMap, PropMap, PropUpdate, PropUpdateType};
-    use std::{ops::Deref, rc::Rc};
+    use std::{ops::Deref, sync::Arc};
 
     #[test]
     fn test_process_prop_update_none() {
@@ -72,7 +72,7 @@ mod tests {
     fn test_process_prop_update_merge() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Rc::new("value1".to_string()));
+        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
         let update = PropUpdate {
             update_type: PropUpdateType::Merge,
             map: update_map,
@@ -88,7 +88,7 @@ mod tests {
     fn test_process_prop_update_replace() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Rc::new("value1".to_string()));
+        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
         let update = PropUpdate {
             update_type: PropUpdateType::Replace,
             map: update_map,
@@ -104,7 +104,7 @@ mod tests {
     fn test_process_prop_update_delete() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Rc::new("value1".to_string()));
+        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
         cpm.insert("test".to_string(), update_map);
         let update = PropUpdate {
             update_type: PropUpdateType::Delete,

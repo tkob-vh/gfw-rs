@@ -22,19 +22,19 @@ use crate::{
     udp::{UDPContext, UDPStreamFactory, UDPStreamManager, UDPVerdict},
 };
 
-const DEFAULT_CHAN_SIZE: usize = 64;
-const DEFAULT_TCP_MAX_BUFFERED_PAGES_TOTAL: usize = 65536;
-const DEFAULT_TCP_MAX_BUFFERED_PAGES_PER_CONNECTION: usize = 16;
+const DEFAULT_CHAN_SIZE: u32 = 64;
+const DEFAULT_TCP_MAX_BUFFERED_PAGES_TOTAL: u32 = 65536;
+const DEFAULT_TCP_MAX_BUFFERED_PAGES_PER_CONNECTION: u32 = 16;
 const DEFAULT_TCP_TIMEOUT: Duration = Duration::from_secs(600);
-const DEFAULT_UDP_MAX_STREAMS: usize = 4096;
+const DEFAULT_UDP_MAX_STREAMS: u32 = 4096;
 const TCP_FLUSH_INTERVAL: Duration = Duration::from_secs(60);
 
 pub struct WorkerPacket {
-    stream_id: i32,
+    pub stream_id: i32,
 
-    packet: Vec<u8>,
+    pub packet: Vec<u8>,
 
-    set_verdict: Box<dyn Fn(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Whatever>>,
+    pub set_verdict: Box<dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Whatever>>,
 }
 
 pub struct Worker {
@@ -72,7 +72,7 @@ impl Worker {
         let udp_stream_manager =
             UDPStreamManager::new(udp_stream_factory, config.udp_max_streams).unwrap();
 
-        let (tx, rx) = mpsc::channel(config.chan_size);
+        let (tx, rx) = mpsc::channel(config.chan_size as usize);
 
         Ok((
             Worker {
@@ -99,7 +99,7 @@ impl Worker {
         ))
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> Result<(), Whatever> {
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
         loop {
@@ -117,6 +117,8 @@ impl Worker {
 
             }
         }
+
+        Ok(())
     }
 
     pub async fn update_ruleset(
@@ -281,16 +283,16 @@ impl Worker {
 }
 
 pub struct WorkerConfig {
-    id: i32,
-    chan_size: usize,
+    pub id: i32,
+    pub chan_size: u32,
 
-    ruleset: Arc<dyn nt_ruleset::Ruleset>,
+    pub ruleset: Arc<dyn nt_ruleset::Ruleset>,
 
-    tcp_max_buffered_pages_total: usize,
-    tcp_max_buffered_pages_per_conn: usize,
-    tcp_timeout: Duration,
+    pub tcp_max_buffered_pages_total: u32,
+    pub tcp_max_buffered_pages_per_conn: u32,
+    pub tcp_timeout: Duration,
 
-    udp_max_streams: usize,
+    pub udp_max_streams: u32,
 }
 
 impl Default for WorkerConfig {

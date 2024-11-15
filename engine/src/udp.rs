@@ -179,11 +179,11 @@ impl UDPStreamManager {
     /// # Returns
     ///
     /// An option containing the new UDPStreamManager if successful.
-    pub fn new(factory: UDPStreamFactory, max_streams: usize) -> Option<Self> {
+    pub fn new(factory: UDPStreamFactory, max_streams: u32) -> Option<Self> {
         Some(UDPStreamManager {
             factory,
             streams: LruCache::new(
-                NonZero::new(max_streams).expect("max_streams should be non zero."),
+                NonZero::new(max_streams as usize).expect("max_streams should be non zero."),
             ),
         })
     }
