@@ -27,7 +27,7 @@ pub enum Verdict {
 /// Packet represents an IP packet.
 pub trait Packet: Any + Send + Sync {
     /// The ID of the stream the packet belongs to.
-    fn stream_id(&self) -> u32;
+    fn stream_id(&self) -> i32;
 
     /// The time the packet was received.
     fn timestamp(&self) -> SystemTime;
@@ -46,7 +46,7 @@ pub type PacketCallback = Box<dyn Fn(Box<dyn Packet>, Option<Whatever>) -> bool 
 
 /// Manage the packet io.
 #[async_trait::async_trait]
-pub trait PacketIO {
+pub trait PacketIO: Send + Sync {
     /// Registers a callback function to be called for each received packet.
     ///
     /// # Arguments
@@ -69,7 +69,7 @@ pub trait PacketIO {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    async fn set_verdict(
+    fn set_verdict(
         &self,
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,

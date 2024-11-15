@@ -150,7 +150,7 @@ impl PacketIO for PcapPacketIO {
                     let id = hash(endpoints.join(",").as_bytes());
 
                     let pcap_packet = PcapPacket {
-                        stream_id: id,
+                        stream_id: id as i32,
                         timestamp: packet_timestamp,
                         data: packet.data[14..].to_vec(),
                     };
@@ -175,7 +175,7 @@ impl PacketIO for PcapPacketIO {
     }
 
     #[allow(unused_variables)]
-    async fn set_verdict(
+    fn set_verdict(
         &self,
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,
@@ -226,13 +226,13 @@ impl PacketIO for PcapPacketIO {
 ///      +---------------------------------------------------------------+
 ///```
 struct PcapPacket {
-    stream_id: u32,
+    stream_id: i32,
     timestamp: SystemTime,
     data: Vec<u8>,
 }
 
 impl Packet for PcapPacket {
-    fn stream_id(&self) -> u32 {
+    fn stream_id(&self) -> i32 {
         self.stream_id
     }
 
