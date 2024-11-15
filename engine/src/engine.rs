@@ -4,9 +4,8 @@
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use snafu::{ResultExt, Whatever};
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
+use snafu::Whatever;
+use tokio::{runtime::Runtime, sync::mpsc};
 use tracing::error;
 
 use crate::{
@@ -14,15 +13,23 @@ use crate::{
     Config,
 };
 
+/// The gfw engine
 struct Engine {
     io: Arc<dyn nt_io::PacketIO>,
+
+    /// The workers.
     workers: Vec<Worker>,
+
+    /// The senders which send tasks to the workers.
     worker_senders: Vec<mpsc::Sender<WorkerPacket>>,
+
     runtime: Runtime,
 }
 
 impl Engine {
+    /// Create a new engine using the worker config.
     pub fn new(config: Config) -> Result<Self, Whatever> {
+        // Decide the number of workers.
         let worker_count = if config.workers > 0 {
             config.workers
         } else {
@@ -32,11 +39,11 @@ impl Engine {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .whatever_context("Failed to create tokio runtime")?;
+            .unwrap();
 
+        // Construct the workers according to the config.
         let mut workers: Vec<Worker> = Vec::with_capacity(worker_count);
         let mut worker_senders = Vec::with_capacity(worker_count);
-
         for i in 0..worker_count {
             let (worker, sender) = Worker::new(WorkerConfig {
                 id: i as i32,
@@ -62,6 +69,7 @@ impl Engine {
 }
 
 impl crate::Engine for Engine {
+    /// Update the ruleset for all the workers.
     async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
@@ -76,56 +84,64 @@ impl crate::Engine for Engine {
     }
 
     async fn run(&mut self) -> Result<(), Whatever> {
-        let (stop_tx, mut stop_rx) = mpsc::channel::<()>(1);
-        for mut worker in self.workers {
+        // Create contexts similar to Go's context cancellation
+        let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
+        let (err_tx, mut err_rx) = mpsc::channel::<Whatever>(1);
+
+        // Start workers.
+        for mut worker in std::mem::take(&mut self.workers) {
+            let err_tx = err_tx.clone();
             self.runtime.spawn(async move {
-                worker.run().await;
+                if let Err(e) = worker.run().await {
+                    let _ = err_tx.send(e).await;
+                }
             });
         }
 
         let worker_senders = self.worker_senders.clone();
-        let (err_tx, mut err_rx) = mpsc::channel::<Whatever>(1);
-        let err_tx_clone = err_tx.clone();
+        let io = self.io.clone();
 
-        self.runtime.block_on(async {
-            self.io
-                .register(Box::new(
-                    move |packet: Box<dyn nt_io::Packet>, err: Option<Whatever>| {
-                        if let Some(e) = err {
-                            if err_tx.blocking_send(e).is_err() {
-                                error!("Failed to send error");
-                            }
-                            return false;
-                        }
-                        self.dispatch(packet, &worker_senders).await
-                    },
-                ))
-                .whatever_context("Failed to register IO callback")?;
-        });
+        // Create packet handler closure
+        let packet_handler = {
+            move |packet: Box<dyn nt_io::Packet>, err: Option<Whatever>| {
+                let worker_senders = worker_senders.clone();
+                let err_tx = err_tx.clone();
+                let io = io.clone();
 
+                self.runtime.block_on(async move {
+                    if let Some(e) = err {
+                        let _ = err_tx.send(e).await;
+                        return false;
+                    }
+                    Self::dispatch(packet, &worker_senders, io).await
+                })
+            }
+        };
+
+        // Register packet handler
+        self.io.register(Box::new(packet_handler)).await?;
+
+        // Wait for either error or shutdown signal (similar to Go's select)
         tokio::select! {
-            Some(err) = err_rx.recv() => {
-                Err(err)
-            }
-            _ = stop_rx.recv() => {
-                Ok(())
-            }
+            Some(err) = err_rx.recv() => Err(err),
+            _ = shutdown_rx.recv() => Ok(()),
         }
     }
 }
 
 impl Engine {
+    /// Dispatch a packet to a worker.
     async fn dispatch(
-        &self,
-        packet: Box<dyn nt_io::Packet>,
+        mut packet: Box<dyn nt_io::Packet>,
         worker_senders: &[mpsc::Sender<WorkerPacket>],
+        io: Arc<dyn nt_io::PacketIO>,
     ) -> bool {
         let data = packet.data();
         if data.is_empty() {
             return true;
         }
 
-        // Check IP version.
+        // Check IP version (same logic as Go version)
         let version = (data[0] >> 4) & 0xF;
         let packet_data = match version {
             4 => {
@@ -143,11 +159,10 @@ impl Engine {
                 }
             }
             _ => {
-                // Upsupported network layer
-                if let Err(e) = self
-                    .io
-                    .set_verdict(&mut packet, nt_io::Verdict::AcceptStream, Vec::new())
-                    .await
+                // Unsupported network layer - accept stream
+                // TODO: Check the Vec::new().
+                if let Err(e) =
+                    io.set_verdict(&mut packet, nt_io::Verdict::AcceptStream, Vec::new())
                 {
                     error!("Failed to set verdict: {}", e);
                 }
@@ -155,21 +170,22 @@ impl Engine {
             }
         };
 
-        // Load balance by stream ID.
+        // Load balance by stream ID (same as Go version)
         let stream_id = packet.stream_id();
         let index = (stream_id % worker_senders.len() as i32) as usize;
 
         let worker_packet = WorkerPacket {
             stream_id,
             packet: packet_data,
-            set_verdict: Box::new(move |verdict, modified_data| {
-                self.io
-                    .set_verdict(&mut packet, verdict, modified_data.unwrap())
-                    .await
-            }),
+            set_verdict: Box::new(
+                move |verdict: nt_io::Verdict, modified_data: Option<Vec<u8>>| {
+                    let io = io.clone();
+                    io.set_verdict(&mut packet, verdict, modified_data.unwrap_or_default())
+                },
+            ),
         };
 
-        // Send to worker
+        // Send to worker using try_send to avoid blocking
         if let Err(e) = worker_senders[index].try_send(worker_packet) {
             error!("Failed to send packet to worker: {}", e);
             return false;
