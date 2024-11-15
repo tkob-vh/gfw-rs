@@ -1,6 +1,4 @@
-//!
-//!
-//!
+//! This crate provides the main engine for OpenGFW, including modules for TCP, UDP, utilities, and workers.
 
 pub mod engine;
 pub mod tcp;

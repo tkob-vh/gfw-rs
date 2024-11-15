@@ -1,5 +1,6 @@
-//!
-//!
+//! This module defines the `Engine` struct and its associated methods for managing packet processing
+//! and worker tasks. The `Engine` is responsible for initializing workers, handling packets, and
+//! updating rulesets.
 
 use std::sync::Arc;
 
@@ -27,7 +28,15 @@ struct Engine {
 }
 
 impl Engine {
-    /// Create a new engine using the worker config.
+    /// Create a new engine using the provided configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - A `Config` struct containing the configuration for the engine.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self, Whatever>` - Returns an `Engine` instance on success, or an error on failure.
     pub fn new(config: Config) -> Result<Self, Whatever> {
         // Decide the number of workers.
         let worker_count = if config.workers > 0 {
@@ -70,6 +79,14 @@ impl Engine {
 
 impl crate::Engine for Engine {
     /// Update the ruleset for all the workers.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_ruleset` - A new ruleset to be applied to the workers.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Whatever>` - Returns `Ok(())` on success, or an error on failure.
     async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
@@ -83,6 +100,11 @@ impl crate::Engine for Engine {
         Ok(())
     }
 
+    /// Run the engine, starting all workers and handling packets.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), Whatever>` - Returns `Ok(())` on success, or an error on failure.
     async fn run(&mut self) -> Result<(), Whatever> {
         // Create contexts similar to Go's context cancellation
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
@@ -131,6 +153,16 @@ impl crate::Engine for Engine {
 
 impl Engine {
     /// Dispatch a packet to a worker.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - A boxed packet to be dispatched.
+    /// * `worker_senders` - A slice of worker senders to send the packet to.
+    /// * `io` - An `Arc` containing the packet IO interface.
+    ///
+    /// # Returns
+    ///
+    /// * `bool` - Returns `true` if the packet was successfully dispatched, or `false` on failure.
     async fn dispatch(
         mut packet: Box<dyn nt_io::Packet>,
         worker_senders: &[mpsc::Sender<WorkerPacket>],
