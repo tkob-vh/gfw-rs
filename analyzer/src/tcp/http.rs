@@ -1,7 +1,6 @@
 //! analyzer for tcp/http
 
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use bytes::BytesMut;
 
@@ -36,13 +35,13 @@ pub struct HTTPStream {
     req_buf: BytesMut,
     req_map: PropMap,
     req_updated: bool,
-    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
+    req_lsm: Arc<RwLock<utils::lsm::LinearStateMachine<HTTPStream>>>,
     req_done: bool,
 
     resp_buf: BytesMut,
     resp_map: PropMap,
     resp_updated: bool,
-    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<HTTPStream>>>,
+    resp_lsm: Arc<RwLock<utils::lsm::LinearStateMachine<HTTPStream>>>,
     resp_done: bool,
 }
 
@@ -52,7 +51,7 @@ impl HTTPStream {
             req_buf: BytesMut::new(),
             req_map: PropMap::new(),
             req_updated: false,
-            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RwLock::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_request_line()),
                 Box::new(|s| s.parse_request_headers()),
             ]))),
@@ -61,7 +60,7 @@ impl HTTPStream {
             resp_buf: BytesMut::new(),
             resp_map: PropMap::new(),
             resp_updated: false,
-            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RwLock::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.parse_response_line()),
                 Box::new(|s| s.parse_response_headers()),
             ]))),
@@ -198,7 +197,7 @@ impl TCPStream for HTTPStream {
             self.resp_updated = false;
 
             let lsm = self.resp_lsm.clone();
-            (cancelled, self.resp_done) = (*lsm).borrow_mut().run(self);
+            (cancelled, self.resp_done) = (*lsm).write().unwrap().run(self);
 
             if self.resp_updated {
                 update = Some(PropUpdate {
@@ -213,7 +212,7 @@ impl TCPStream for HTTPStream {
             self.req_updated = false;
 
             let lsm = self.req_lsm.clone();
-            (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
+            (cancelled, self.req_done) = (*lsm).write().unwrap().run(self);
 
             if self.req_updated {
                 update = Some(PropUpdate {

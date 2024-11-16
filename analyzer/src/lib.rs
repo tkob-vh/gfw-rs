@@ -59,7 +59,7 @@ pub struct TCPInfo {
 }
 
 /// The `TCPStream` trait defines the interface for handling TCP stream data.
-pub trait TCPStream {
+pub trait TCPStream: Send + Sync {
     /// Feed a chunk of reassembled data to the stream.
     ///
     /// # Arguments
@@ -121,7 +121,7 @@ pub struct UDPInfo {
 }
 
 /// The `UDPStream` trait defines the interface for handling UDP stream data.
-pub trait UDPStream {
+pub trait UDPStream: Send + Sync {
     /// Feed a chunk of reassembled data to the stream.
     ///
     /// # Arguments

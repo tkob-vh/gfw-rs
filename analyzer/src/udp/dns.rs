@@ -14,8 +14,7 @@
 //! - `parse_dns_message`: Parses a DNS message and returns a property map.
 //! - `dns_rr_to_prop_map`: Converts a DNS response record to a property map.
 
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use bytes::{Buf, BytesMut};
 use pnet::packet::dns;
@@ -120,14 +119,14 @@ pub struct DNSTCPStream {
     /// If the prop_map has been updated.
     req_updated: bool,
     /// The linear state machine which process the message with the methods in field `steps`.
-    req_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
+    req_lsm: Arc<RwLock<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
     /// Whether the request message has been processed.
     req_done: bool,
 
     resp_buf: BytesMut,
     resp_map: PropMap,
     resp_updated: bool,
-    resp_lsm: Arc<RefCell<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
+    resp_lsm: Arc<RwLock<utils::lsm::LinearStateMachine<DNSTCPStream>>>,
     resp_done: bool,
 
     /// The length of the request message.
@@ -143,7 +142,7 @@ impl DNSTCPStream {
             req_buf: BytesMut::new(),
             req_map: PropMap::new(),
             req_updated: false,
-            req_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            req_lsm: Arc::new(RwLock::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_req_message_length()),
                 Box::new(|s| s.get_req_message()),
             ]))),
@@ -152,7 +151,7 @@ impl DNSTCPStream {
             resp_buf: BytesMut::new(),
             resp_map: PropMap::new(),
             resp_updated: false,
-            resp_lsm: Arc::new(RefCell::new(utils::lsm::LinearStateMachine::new(vec![
+            resp_lsm: Arc::new(RwLock::new(utils::lsm::LinearStateMachine::new(vec![
                 Box::new(|s| s.get_resp_message_length()),
                 Box::new(|s| s.get_resp_message()),
             ]))),
@@ -294,7 +293,7 @@ impl TCPStream for DNSTCPStream {
 
             // Run the lsm of the response message and get its final status.
             let lsm = self.resp_lsm.clone();
-            (cancelled, self.resp_done) = (*lsm).borrow_mut().run(self);
+            (cancelled, self.resp_done) = (*lsm).write().unwrap().run(self);
 
             // If the prop_map has been updated, consume it.
             if self.resp_updated {
@@ -311,7 +310,7 @@ impl TCPStream for DNSTCPStream {
             self.req_updated = false;
 
             let lsm = self.req_lsm.clone();
-            (cancelled, self.req_done) = (*lsm).borrow_mut().run(self);
+            (cancelled, self.req_done) = (*lsm).write().unwrap().run(self);
 
             if self.req_updated {
                 update = Some(PropUpdate {
