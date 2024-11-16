@@ -5,7 +5,7 @@
 pub mod nfqueue;
 pub mod pcap;
 
-use snafu::Whatever;
+use std::error::Error;
 use std::{any::Any, time::SystemTime};
 use tokio::net::TcpStream;
 
@@ -42,7 +42,8 @@ pub trait Packet: Any + Send + Sync {
 
 /// The function to be called for each received packet.
 /// Return false to "unregister" and stop receiving packets.
-pub type PacketCallback = Box<dyn Fn(Box<dyn Packet>, Option<Whatever>) -> bool + Send + Sync>;
+pub type PacketCallback =
+    Box<dyn Fn(Box<dyn Packet>, Option<Box<dyn Error + Send + Sync>>) -> bool + Send + Sync>;
 
 /// Manage the packet io.
 #[async_trait::async_trait]
@@ -56,7 +57,10 @@ pub trait PacketIO: Send + Sync {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    async fn register(&mut self, callback: PacketCallback) -> Result<(), Whatever>;
+    async fn register(
+        &mut self,
+        callback: PacketCallback,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Set the verdict for a packet. (Used in iptables/nftables)
     ///
@@ -74,7 +78,7 @@ pub trait PacketIO: Send + Sync {
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
-    ) -> Result<(), Whatever>;
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Establishes a protected TCP connection to the given address.
     ///
@@ -88,7 +92,10 @@ pub trait PacketIO: Send + Sync {
     /// # Returns
     ///
     /// * `Result<TcpStream, Box<dyn Error>>` - A result containing the TCP stream or an error.
-    async fn protected_conn(&self, address: &str) -> Result<TcpStream, Whatever>;
+    async fn protected_conn(
+        &self,
+        address: &str,
+    ) -> Result<TcpStream, Box<dyn Error + Send + Sync>>;
 
     ///// Close the packet io.
     //async fn close(&self) -> Result<(), Whatever>;
@@ -105,5 +112,5 @@ pub trait PacketIO: Send + Sync {
     async fn set_cancel_func(
         &self,
         cancel_func: Box<dyn Fn() + Send + Sync>,
-    ) -> Result<(), Whatever>;
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 }

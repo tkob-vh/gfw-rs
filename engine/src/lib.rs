@@ -6,20 +6,23 @@ pub mod udp;
 pub mod utils;
 pub mod worker;
 
+use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
 use nt_io::PacketIO;
 use nt_ruleset::Ruleset;
-use snafu::Whatever;
 
 /// Engine is the main engine for OpenGFW.
 pub trait Engine {
     /// UpdateRuleset updates the ruleset.
-    async fn update_ruleset(&mut self, new_ruleset: Arc<dyn Ruleset>) -> Result<(), Whatever>;
+    async fn update_ruleset(
+        &mut self,
+        new_ruleset: Arc<dyn Ruleset>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Run runs the engine, until an error occurs or the context is cancelled.
-    async fn run(&mut self) -> Result<(), Whatever>;
+    async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
 
 /// Config is the configuration for the engine.

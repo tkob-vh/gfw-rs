@@ -2,10 +2,10 @@
 //! and worker tasks. The `Engine` is responsible for initializing workers, handling packets, and
 //! updating rulesets.
 
+use std::error::Error;
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use snafu::Whatever;
 use tokio::{runtime::Runtime, sync::mpsc};
 use tracing::error;
 
@@ -36,8 +36,8 @@ impl Engine {
     ///
     /// # Returns
     ///
-    /// * `Result<Self, Whatever>` - Returns an `Engine` instance on success, or an error on failure.
-    pub fn new(config: Config) -> Result<Self, Whatever> {
+    /// * `Result<Self, Box<dyn Error + Send + Sync>>` - Returns an `Engine` instance on success, or an error on failure.
+    pub fn new(config: Config) -> Result<Self, Box<dyn Error + Send + Sync>> {
         // Decide the number of workers.
         let worker_count = if config.workers > 0 {
             config.workers
@@ -86,11 +86,11 @@ impl crate::Engine for Engine {
     ///
     /// # Returns
     ///
-    /// * `Result<(), Whatever>` - Returns `Ok(())` on success, or an error on failure.
+    /// * `Result<(), Box<dyn Error + Send + Sync>>` - Returns `Ok(())` on success, or an error on failure.
     async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         for worker in &mut self.workers {
             if let Err(e) = worker.update_ruleset(new_ruleset.clone()).await {
                 return Err(e);
@@ -104,18 +104,18 @@ impl crate::Engine for Engine {
     ///
     /// # Returns
     ///
-    /// * `Result<(), Whatever>` - Returns `Ok(())` on success, or an error on failure.
-    async fn run(&mut self) -> Result<(), Whatever> {
+    /// * `Result<(), Box<dyn Error + Send + Sync>>` - Returns `Ok(())` on success, or an error on failure.
+    async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Create contexts similar to Go's context cancellation
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
-        let (err_tx, mut err_rx) = mpsc::channel::<Whatever>(1);
+        let (err_tx, mut err_rx) = mpsc::channel::<Arc<Box<dyn Error + Send + Sync>>>(1);
 
         // Start workers.
         for mut worker in std::mem::take(&mut self.workers) {
             let err_tx = err_tx.clone();
             self.runtime.spawn(async move {
                 if let Err(e) = worker.run().await {
-                    let _ = err_tx.send(e).await;
+                    let _ = err_tx.send(Arc::new(e)).await;
                 }
             });
         }
@@ -125,14 +125,14 @@ impl crate::Engine for Engine {
 
         // Create packet handler closure
         let packet_handler = {
-            move |packet: Box<dyn nt_io::Packet>, err: Option<Whatever>| {
+            move |packet: Box<dyn nt_io::Packet>, err: Option<Box<dyn Error + Send + Sync>>| {
                 let worker_senders = worker_senders.clone();
                 let err_tx = err_tx.clone();
                 let io = io.clone();
 
                 self.runtime.block_on(async move {
                     if let Some(e) = err {
-                        let _ = err_tx.send(e).await;
+                        let _ = err_tx.send(Arc::new(e)).await;
                         return false;
                     }
                     Self::dispatch(packet, &worker_senders, io).await
@@ -145,7 +145,7 @@ impl crate::Engine for Engine {
 
         // Wait for either error or shutdown signal (similar to Go's select)
         tokio::select! {
-            Some(err) = err_rx.recv() => Err(err),
+            Some(err) = err_rx.recv() => Err(*err),
             _ = shutdown_rx.recv() => Ok(()),
         }
     }

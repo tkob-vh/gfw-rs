@@ -3,11 +3,10 @@
 //! This module provides functionality for handling TCP streams, including
 //! creating new TCP streams, processing TCP packets, and updating stream properties.
 
-use std::{net::IpAddr, num::NonZero, ops::Deref, sync::Arc, time::Duration};
+use std::{error::Error, net::IpAddr, num::NonZero, ops::Deref, sync::Arc, time::Duration};
 
 use lru::LruCache;
 use pnet::packet::{tcp::MutableTcpPacket, Packet};
-use snafu::Whatever;
 use snowflake::SnowflakeIdGenerator;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -151,7 +150,7 @@ impl TCPStreamFactory {
     pub async fn update_ruleset(
         &self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut ruleset = self.ruleset.write().await;
         *ruleset = new_ruleset;
         Ok(())
@@ -244,10 +243,8 @@ impl TCPStreamManager {
         }
     }
 
-    ///
     pub fn flush_older_than(&mut self, timeout: Duration) -> (usize, usize) {
-        // TODO: Implement this function.
-        (0, 0)
+        todo!("Implement this function");
     }
 }
 

@@ -13,12 +13,12 @@
 //! * The Close function is not implemented. (It is used like RAII in go).
 //! * The addr family is assumed ipv4.
 
+use std::error::Error;
 use std::net::SocketAddr;
-use std::os::unix::io::AsRawFd;
+use std::os::fd::AsRawFd;
 use std::{any::Any, process::Command, sync::Arc, time::SystemTime};
 
 use nfq::{Conntrack, Message, Queue};
-use snafu::{ResultExt, Whatever};
 use socket2::{Domain, Socket, Type};
 use tokio::{net::TcpStream, sync::Mutex};
 use tracing::error;
@@ -476,7 +476,10 @@ impl NFQueuePacketIO {
 
 #[async_trait::async_trait]
 impl PacketIO for NFQueuePacketIO {
-    async fn register(&mut self, callback: PacketCallback) -> Result<(), Whatever> {
+    async fn register(
+        &mut self,
+        callback: PacketCallback,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Check if the rules have been set.
         if !self.rule_set {
             let _ = self.setup_nft(false).await;
@@ -528,7 +531,7 @@ impl PacketIO for NFQueuePacketIO {
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Downcast the Packet trait to NFQueuePacket.
         let nfq_packet = packet
             .as_any_mut()
@@ -569,7 +572,7 @@ impl PacketIO for NFQueuePacketIO {
     ///
     /// Returns a `Result` which is:
     /// * `Ok(TcpStream)` - If the connection is successfully established.
-    /// * `Err(Whatever)` - If there is an error during the process.
+    /// * `Err(Box<dyn Error + Send + Sync>)` - If there is an error during the process.
     ///
     /// # Errors
     ///
@@ -580,13 +583,12 @@ impl PacketIO for NFQueuePacketIO {
     /// * The connection to the address fails.
     /// * The socket cannot be set to non-blocking mode.
     /// * The socket cannot be converted to a Tokio `TcpStream`.
-    async fn protected_conn(&self, addr: &str) -> Result<TcpStream, Whatever> {
+    async fn protected_conn(&self, addr: &str) -> Result<TcpStream, Box<dyn Error + Send + Sync>> {
         // Parse the address string into a `SocketAddr`.
-        let addr: SocketAddr = addr.parse().whatever_context("Failed to parse address")?;
+        let addr: SocketAddr = addr.parse()?;
 
         // Create a new socket with the specified domain and type.
-        let socket = Socket::new(Domain::IPV4, Type::STREAM, None)
-            .whatever_context("Failed to create socket")?;
+        let socket = Socket::new(Domain::IPV4, Type::STREAM, None)?;
 
         // Set the socket mark to ensure the connection is protected by the NFQUEUE rules.
         // This is done using the `setsockopt` system call with the `SO_MARK` option.
@@ -602,25 +604,23 @@ impl PacketIO for NFQueuePacketIO {
         }
 
         // Connect the socket to the specified address.
-        socket
-            .connect(&addr.into())
-            .whatever_context("Failed to connect")?;
+        socket.connect(&addr.into())?;
 
         // Convert the socket to a standard `TcpStream`.
         let std_stream = std::net::TcpStream::from(socket);
 
         // Set the standard `TcpStream` to non-blocking mode.
-        std_stream
-            .set_nonblocking(true)
-            .whatever_context("Failed to set non-blocking")?;
+        std_stream.set_nonblocking(true)?;
 
-        TcpStream::from_std(std_stream).whatever_context("Failed to convert to tokio TcpStream")
+        let stream = TcpStream::from_std(std_stream)?;
+
+        Ok(stream)
     }
 
     async fn set_cancel_func(
         &self,
         _cancel_func: Box<dyn Fn() + Send + Sync>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // NFQueue doesn't need cancel functionality
         Ok(())
     }
@@ -707,7 +707,7 @@ impl Packet for NFQueuePacket {
 //        let config = NFQueuePacketIOConfig::default();
 //        let mut nfqueue_packet_io = NFQueuePacketIO::new(config).unwrap();
 //        let callback = Box::new(
-//            |_packet: Box<dyn Packet>, _data: Option<Whatever>| -> bool {
+//            |_packet: Box<dyn Packet>, _data: Option<Box<dyn Error + Send + Sync>>| -> bool {
 //                info!("Packet received");
 //                true
 //            },

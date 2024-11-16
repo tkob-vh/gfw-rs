@@ -88,7 +88,7 @@ pub struct CliConfigRuleset {
 
 /// Parses YAML configuration from a string and returns a `CliConfig` struct.
 #[allow(unused)]
-fn load_config_from_string(yaml_str: &str) -> Result<CliConfig, Box<dyn std::error::Error>> {
+fn load_config_from_string(yaml_str: &str) -> Result<CliConfig, Box<dyn Error>> {
     // Parse the YAML string into the CliConfig struct
     let config: CliConfig = serde_yaml::from_str(yaml_str)?;
     Ok(config)
