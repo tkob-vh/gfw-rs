@@ -16,7 +16,7 @@ pub enum LSMAction {
 }
 
 /// The type of the funtciotns in the step.
-pub type StepType<T> = Box<dyn Fn(&mut T) -> LSMAction>;
+pub type StepType<T> = Box<dyn Fn(&mut T) -> LSMAction + Send + Sync>;
 
 /// A linear state machine that executes a series of steps in order.
 /// Each step is a function that returns an `LSMAction` indicating the next action to take.
