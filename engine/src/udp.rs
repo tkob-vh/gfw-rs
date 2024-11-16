@@ -3,13 +3,12 @@
 //! This module provides functionality for managing UDP streams, including creating new streams,
 //! feeding packets to streams, and handling stream properties and actions based on rulesets.
 
-use std::{net::IpAddr, num::NonZero, ops::Deref, sync::Arc};
+use std::{error::Error, net::IpAddr, num::NonZero, ops::Deref, sync::Arc};
 
 use bytes::BytesMut;
 use lru::LruCache;
 use nt_modifier::UDPModifierInstance;
 use pnet::packet::{udp::MutableUdpPacket, MutablePacket, Packet};
-use snafu::Whatever;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 
@@ -155,7 +154,7 @@ impl UDPStreamFactory {
     pub async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut ruleset = self.ruleset.write().await;
         *ruleset = new_ruleset;
         Ok(())

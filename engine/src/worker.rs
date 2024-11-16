@@ -1,6 +1,7 @@
 //! This module defines the `Worker` struct and its associated functionality for handling TCP and UDP packets.
 //! It includes the creation of workers, packet handling, and ruleset updates.
 
+use std::error::Error;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +11,6 @@ use pnet::packet::{
     ip::IpNextHeaderProtocols, ipv4::MutableIpv4Packet, ipv6::MutableIpv6Packet,
     tcp::MutableTcpPacket, udp::MutableUdpPacket, MutablePacket, Packet,
 };
-use snafu::Whatever;
 use snowflake::SnowflakeIdGenerator;
 use tokio::{
     sync::{mpsc, RwLock},
@@ -35,7 +35,11 @@ pub struct WorkerPacket {
 
     pub packet: Vec<u8>,
 
-    pub set_verdict: Box<dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Whatever>>,
+    pub set_verdict: Box<
+        dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
+            + Send
+            + Sync,
+    >,
 }
 
 pub struct Worker {
@@ -63,7 +67,9 @@ impl Worker {
     /// # Returns
     ///
     /// A tuple containing the `Worker` instance and an `mpsc::Sender` for sending `WorkerPacket`s.
-    pub fn new(config: WorkerConfig) -> Result<(Self, mpsc::Sender<WorkerPacket>), Whatever> {
+    pub fn new(
+        config: WorkerConfig,
+    ) -> Result<(Self, mpsc::Sender<WorkerPacket>), Box<dyn Error + Send + Sync>> {
         // TODO: Modify the logic of this generation.
         let node = SnowflakeIdGenerator::new(config.id, config.id);
 
@@ -114,7 +120,7 @@ impl Worker {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub async fn run(&mut self) -> Result<(), Whatever> {
+    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
         loop {
@@ -148,7 +154,7 @@ impl Worker {
     pub async fn update_ruleset(
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Err(e) = self
             .tcp_stream_factory
             .update_ruleset(new_ruleset.clone())

@@ -12,9 +12,9 @@ use crate::{Packet, PacketCallback, PacketIO, Verdict};
 use async_trait::async_trait;
 use crc32fast::hash;
 use pcap::Capture;
-use snafu::Whatever;
 
 use std::any::Any;
+use std::error::Error;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -104,7 +104,10 @@ impl PcapPacketIO {
 
 #[async_trait]
 impl PacketIO for PcapPacketIO {
-    async fn register(&mut self, callback: PacketCallback) -> Result<(), Whatever> {
+    async fn register(
+        &mut self,
+        callback: PacketCallback,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut capture = Capture::from_file(&self.config.pcap_file).unwrap();
         let time_offset = self.time_offset.clone();
         let config = self.config.clone();
@@ -180,17 +183,17 @@ impl PacketIO for PcapPacketIO {
         packet: &mut Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // PCAP is read-only, so we don't need to implement verdict handling
         Ok(())
     }
 
-    async fn protected_conn(&self, addr: &str) -> Result<TcpStream, Whatever> {
+    async fn protected_conn(&self, addr: &str) -> Result<TcpStream, Box<dyn Error + Send + Sync>> {
         // Simple TCP connection as PCAP doesn't interfere with networking
         Ok(TcpStream::connect(addr).await.unwrap())
     }
 
-    //async fn close(&self) -> Result<(), Whatever> {
+    //async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
     //    // File will be closed when the Arc/Mutex is dropped
     //    Ok(())
     //}
@@ -198,7 +201,7 @@ impl PacketIO for PcapPacketIO {
     async fn set_cancel_func(
         &self,
         cancel_func: Box<dyn Fn() + Send + Sync>,
-    ) -> Result<(), Whatever> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut func = self.cancel_func.blocking_lock();
         *func = Some(cancel_func);
         Ok(())
