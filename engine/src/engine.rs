@@ -6,7 +6,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use tokio::{runtime::Runtime, sync::mpsc};
+use tokio::{runtime::Runtime, sync::mpsc, sync::RwLock};
 use tracing::error;
 
 use crate::{
@@ -108,20 +108,21 @@ impl crate::Engine for Engine {
     async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Create contexts similar to Go's context cancellation
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
-        let (err_tx, mut err_rx) = mpsc::channel::<Arc<Box<dyn Error + Send + Sync>>>(1);
+        let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
 
         // Start workers.
         for mut worker in std::mem::take(&mut self.workers) {
             let err_tx = err_tx.clone();
             self.runtime.spawn(async move {
                 if let Err(e) = worker.run().await {
-                    let _ = err_tx.send(Arc::new(e)).await;
+                    let _ = err_tx.send(e).await;
                 }
             });
         }
 
         let worker_senders = self.worker_senders.clone();
         let io = self.io.clone();
+        let runtime_handle = self.runtime.handle().clone();
 
         // Create packet handler closure
         let packet_handler = {
@@ -130,9 +131,9 @@ impl crate::Engine for Engine {
                 let err_tx = err_tx.clone();
                 let io = io.clone();
 
-                self.runtime.block_on(async move {
+                runtime_handle.block_on(async move {
                     if let Some(e) = err {
-                        let _ = err_tx.send(Arc::new(e)).await;
+                        let _ = err_tx.send(e).await;
                         return false;
                     }
                     Self::dispatch(packet, &worker_senders, io).await
@@ -145,7 +146,7 @@ impl crate::Engine for Engine {
 
         // Wait for either error or shutdown signal (similar to Go's select)
         tokio::select! {
-            Some(err) = err_rx.recv() => Err(*err),
+            Some(err) = err_rx.recv() => Err(err),
             _ = shutdown_rx.recv() => Ok(()),
         }
     }

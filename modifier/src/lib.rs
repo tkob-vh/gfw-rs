@@ -31,7 +31,7 @@ pub trait Modifier {
 }
 
 /// The `Instance` trait is a marker trait for instances of modifiers.
-pub trait Instance: Any {
+pub trait Instance: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
