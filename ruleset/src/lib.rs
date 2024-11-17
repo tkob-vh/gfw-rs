@@ -48,7 +48,7 @@ pub struct MatchResult {
 }
 
 /// The ruleset trait.
-pub trait Ruleset {
+pub trait Ruleset: Send + Sync {
     /// - returns the list of analyzers to use for a stream.
     ///
     /// It must be safe for concurrent use by multiple workers.
