@@ -93,9 +93,7 @@ impl crate::Engine for Engine {
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         for worker in &mut self.workers {
-            if let Err(e) = worker.update_ruleset(new_ruleset.clone()).await {
-                return Err(e);
-            }
+            worker.update_ruleset(new_ruleset.clone()).await?
         }
 
         Ok(())

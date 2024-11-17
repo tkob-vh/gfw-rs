@@ -23,9 +23,9 @@ pub enum TCPVerdict {
     DropStream,
 }
 
-impl Into<nt_io::Verdict> for TCPVerdict {
-    fn into(self) -> nt_io::Verdict {
-        match self {
+impl From<TCPVerdict> for nt_io::Verdict {
+    fn from(value: TCPVerdict) -> Self {
+        match value {
             TCPVerdict::Accept => nt_io::Verdict::Accept,
             TCPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
             TCPVerdict::DropStream => nt_io::Verdict::DropStream,
@@ -96,7 +96,7 @@ impl TCPStreamFactory {
 
         // Construct the stream info for the ruleset.
         let info = nt_ruleset::StreamInfo {
-            id: id as i64,
+            id,
             protocol: nt_ruleset::Protocol::TCP,
             src_ip,
             dst_ip,
