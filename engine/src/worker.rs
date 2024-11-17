@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::{error, info};
+use tracing::error;
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -70,11 +70,11 @@ impl Worker {
     pub fn new(
         config: WorkerConfig,
     ) -> Result<(Self, mpsc::Sender<WorkerPacket>), Box<dyn Error + Send + Sync>> {
-        // TODO: Modify the logic of this generation.
+        todo!("Modify the logic of this generation.");
         let node = SnowflakeIdGenerator::new(config.id, config.id);
 
         let tcp_stream_factory =
-            TCPStreamFactory::new(config.id, node.clone(), RwLock::new(config.ruleset.clone()));
+            TCPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
 
         let tcp_stream_manager = TCPStreamManager::new(
             tcp_stream_factory,
@@ -83,7 +83,7 @@ impl Worker {
         );
 
         let udp_stream_factory =
-            UDPStreamFactory::new(config.id, node.clone(), RwLock::new(config.ruleset.clone()));
+            UDPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
 
         let udp_stream_manager =
             UDPStreamManager::new(udp_stream_factory, config.udp_max_streams).unwrap();
@@ -97,7 +97,7 @@ impl Worker {
 
                 tcp_stream_factory: TCPStreamFactory::new(
                     config.id,
-                    node.clone(),
+                    node,
                     RwLock::new(config.ruleset.clone()),
                 ),
                 tcp_stream_manager,
@@ -106,7 +106,7 @@ impl Worker {
                 udp_stream_manager,
                 udp_stream_factory: UDPStreamFactory::new(
                     config.id,
-                    node.clone(),
+                    node,
                     RwLock::new(config.ruleset.clone()),
                 ),
                 mod_serialize_buffer: BytesMut::new(),
@@ -127,7 +127,7 @@ impl Worker {
             tokio::select! {
                 Some(mut packet) = self.packet_rx.recv() => {
                     let (verdict, modified) = self.handle_packet(packet.stream_id, packet.packet.as_mut()).await;
-                    if let Err(_) = (packet.set_verdict)(verdict, modified) {
+                    if (packet.set_verdict)(verdict, modified).is_err() {
                         error!("Failed to set the verdict");
                     }
                 }
@@ -155,13 +155,10 @@ impl Worker {
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        if let Err(e) = self
-            .tcp_stream_factory
+        self.tcp_stream_factory
             .update_ruleset(new_ruleset.clone())
-            .await
-        {
-            return Err(e);
-        }
+            .await?;
+
         self.udp_stream_factory
             .update_ruleset(new_ruleset.clone())
             .await
@@ -215,7 +212,7 @@ impl Worker {
                         match verdict {
                             nt_io::Verdict::AcceptModify if modified.is_some() => {
                                 // Serialize modified packet.
-                                //TODO: Implement packet serialization.
+                                todo!("Implement packet serialization.");
                                 return (verdict, modified);
                             }
                             _ => return (verdict, None),
@@ -256,7 +253,7 @@ impl Worker {
                         match verdict {
                             nt_io::Verdict::AcceptModify if modified.is_some() => {
                                 // Serialize modified packet.
-                                //TODO: Implement packet serialization.
+                                todo!("Implement packet serialization.");
                                 return (verdict, modified);
                             }
                             _ => return (verdict, None),
@@ -307,9 +304,8 @@ impl Worker {
     ///
     /// * `timeout` - The duration after which TCP streams should be flushed.
     async fn flush_tcp(&mut self, timeout: Duration) {
-        let (flushed, closed) = self.tcp_stream_manager.flush_older_than(timeout);
-        //TODO: To be implemented.
-        info!("TCP flush completed");
+        let (_flushed, _closed) = self.tcp_stream_manager.flush_older_than(timeout);
+        todo!("To be implemented.");
     }
 
     /// Handles a UDP packet.

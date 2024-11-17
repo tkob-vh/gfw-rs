@@ -27,7 +27,7 @@ pub fn process_prop_update(
 
             // If the update type is Merge, merge the properties
             PropUpdateType::Merge => {
-                let map = cpm.entry(name.to_string()).or_insert_with(PropMap::new);
+                let map = cpm.entry(name.to_string()).or_default();
                 for (k, v) in update.map.iter() {
                     map.insert(k.to_owned(), v.to_owned());
                 }

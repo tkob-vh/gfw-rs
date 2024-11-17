@@ -25,9 +25,9 @@ pub enum UDPVerdict {
     DropStream,
 }
 
-impl Into<nt_io::Verdict> for UDPVerdict {
-    fn into(self) -> nt_io::Verdict {
-        match self {
+impl From<UDPVerdict> for nt_io::Verdict {
+    fn from(value: UDPVerdict) -> Self {
+        match value {
             UDPVerdict::Accept => nt_io::Verdict::Accept,
             UDPVerdict::AcceptModify => nt_io::Verdict::AcceptModify,
             UDPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
