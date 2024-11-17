@@ -6,7 +6,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use tokio::{runtime::Runtime, sync::mpsc, sync::RwLock};
+use tokio::{runtime::Runtime, sync::mpsc};
 use tracing::error;
 
 use crate::{
@@ -77,6 +77,7 @@ impl Engine {
     }
 }
 
+#[async_trait::async_trait]
 impl crate::Engine for Engine {
     /// Update the ruleset for all the workers.
     ///

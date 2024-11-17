@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1.83"
 bytes = "1.8.0"
 lru = "0.12.5"
 nt-analyzer.workspace = true

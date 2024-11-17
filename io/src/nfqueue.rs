@@ -296,7 +296,7 @@ pub struct NFQueuePacketIO {
     rst: bool,
 
     /// A boolean flag indicating whether the nftables/iptables rules have been set.
-    rule_set: bool,
+    rule_set: Arc<Mutex<bool>>,
     // An `NFQueuePacketIOConfig` struct that holds the configuration for the NFQUEUE.
     //config: NFQueuePacketIOConfig,
 }
@@ -376,7 +376,7 @@ impl NFQueuePacketIO {
             queue: Arc::new(Mutex::new(queue)),
             local: config.local,
             rst: config.rst,
-            rule_set: false,
+            rule_set: Arc::new(Mutex::new(false)),
             //config,
         })
     }
@@ -476,14 +476,12 @@ impl NFQueuePacketIO {
 
 #[async_trait::async_trait]
 impl PacketIO for NFQueuePacketIO {
-    async fn register(
-        &mut self,
-        callback: PacketCallback,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Check if the rules have been set.
-        if !self.rule_set {
+        let mut rule_set = self.rule_set.lock().await;
+        if !*rule_set {
             let _ = self.setup_nft(false).await;
-            self.rule_set = true;
+            *rule_set = true;
         }
 
         let queue = self.queue.clone();

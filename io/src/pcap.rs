@@ -104,10 +104,7 @@ impl PcapPacketIO {
 
 #[async_trait]
 impl PacketIO for PcapPacketIO {
-    async fn register(
-        &mut self,
-        callback: PacketCallback,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut capture = Capture::from_file(&self.config.pcap_file).unwrap();
         let time_offset = self.time_offset.clone();
         let config = self.config.clone();
@@ -300,7 +297,7 @@ mod tests {
             pcap_file: String::from("../assets/pcaps/ipv4frags.pcap"),
             real_time: false,
         };
-        let mut pcap_io = PcapPacketIO::new(config).unwrap();
+        let pcap_io = PcapPacketIO::new(config).unwrap();
 
         let result = pcap_io
             .register(Box::new(move |_, err| {

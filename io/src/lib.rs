@@ -57,10 +57,7 @@ pub trait PacketIO: Send + Sync {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    async fn register(
-        &mut self,
-        callback: PacketCallback,
-    ) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Set the verdict for a packet. (Used in iptables/nftables)
     ///

@@ -14,6 +14,7 @@ use nt_io::PacketIO;
 use nt_ruleset::Ruleset;
 
 /// Engine is the main engine for OpenGFW.
+#[async_trait::async_trait]
 pub trait Engine {
     /// UpdateRuleset updates the ruleset.
     async fn update_ruleset(
