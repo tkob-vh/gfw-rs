@@ -55,6 +55,12 @@ impl OpenVPNAnalyzer {
     }
 }
 
+impl Default for OpenVPNAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Analyzer for OpenVPNAnalyzer {
     fn name(&self) -> &str {
         "openvpn"

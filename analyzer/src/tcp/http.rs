@@ -16,6 +16,12 @@ impl HTTPAnalyzer {
     }
 }
 
+impl Default for HTTPAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Analyzer for HTTPAnalyzer {
     fn name(&self) -> &str {
         "http"
