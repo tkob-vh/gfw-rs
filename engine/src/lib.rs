@@ -10,6 +10,8 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::sync::mpsc::Receiver;
+
 use nt_io::PacketIO;
 use nt_ruleset::Ruleset;
 
@@ -23,27 +25,30 @@ pub trait Engine {
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Run runs the engine, until an error occurs or the context is cancelled.
-    async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn run(
+        &mut self,
+        mut shutdone_rx: Receiver<()>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
 
 /// Config is the configuration for the engine.
-struct Config {
-    io: Arc<dyn PacketIO>,
+pub struct Config {
+    pub io: Arc<dyn PacketIO>,
 
-    ruleset: Arc<dyn Ruleset>,
+    pub ruleset: Arc<dyn Ruleset>,
 
     /// Number of workers. Zero or negative means auto (number of CPU cores).
-    workers: usize,
+    pub workers: usize,
 
-    worker_queue_size: u32,
+    pub worker_queue_size: u32,
 
-    worker_tcp_max_buffered_pages_total: u32,
+    pub worker_tcp_max_buffered_pages_total: u32,
 
-    worker_tcp_max_buffered_pages_per_conn: u32,
+    pub worker_tcp_max_buffered_pages_per_conn: u32,
 
-    worker_tcp_timeout: Duration,
+    pub worker_tcp_timeout: Duration,
 
-    worker_udp_max_streams: u32,
+    pub worker_udp_max_streams: u32,
 }
 
 // Logger is the combined logging interface for the engine, workers and analyzers.

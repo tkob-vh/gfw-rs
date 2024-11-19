@@ -6,7 +6,10 @@ use std::error::Error;
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use tokio::{runtime::Runtime, sync::mpsc};
+use tokio::{
+    runtime::Runtime,
+    sync::mpsc::{self, Receiver},
+};
 use tracing::error;
 
 use crate::{
@@ -15,7 +18,7 @@ use crate::{
 };
 
 /// The gfw engine
-struct Engine {
+pub struct Engine {
     io: Arc<dyn nt_io::PacketIO>,
 
     /// The workers.
@@ -104,9 +107,12 @@ impl crate::Engine for Engine {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error + Send + Sync>>` - Returns `Ok(())` on success, or an error on failure.
-    async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn run(
+        &mut self,
+        mut shutdown_rx: Receiver<()>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Create contexts similar to Go's context cancellation
-        let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
+        // shutdown logic is implemented in cmd/main.rs using ctrl_c.
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
 
         // Start workers.
