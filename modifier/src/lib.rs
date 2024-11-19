@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::{any::Any, collections::HashMap};
 
 /// The `Modifier` trait allows for the creation of new instances of modifiers with specific arguments.
-pub trait Modifier {
+pub trait Modifier: Send + Sync {
     /// Returns the name of the modifier.
     fn name(&self) -> &str;
 
