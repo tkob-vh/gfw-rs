@@ -57,22 +57,22 @@ pub struct CliConfigReplay {
 pub struct CliConfigWorkers {
     /// Number of worker threads.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
-    pub count: i32,
+    pub count: usize,
     /// Size of the queue for each worker.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
-    pub queue_size: i32,
+    pub queue_size: u32,
     /// Maximum number of buffered pages across all TCP connections.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
-    pub tcp_max_buffered_pages_total: i32,
+    pub tcp_max_buffered_pages_total: u32,
     /// Maximum number of buffered pages per TCP connection.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
-    pub tcp_max_buffered_pages_per_conn: i32,
+    pub tcp_max_buffered_pages_per_conn: u32,
     /// TCP timeout duration, the unit is 's'.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_timeout: u64,
     /// Maximum number of UDP streams.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
-    pub udp_max_streams: i32,
+    pub udp_max_streams: u32,
 }
 
 /// Ruleset configuration struct, containing paths to GeoIP and GeoSite files.
