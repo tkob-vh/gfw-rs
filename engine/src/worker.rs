@@ -73,8 +73,14 @@ impl Worker {
     pub fn new(
         config: WorkerConfig,
     ) -> Result<(Self, mpsc::Sender<WorkerPacket>), Box<dyn Error + Send + Sync>> {
-        todo!("Modify the logic of this generation.");
-        let node = SnowflakeIdGenerator::new(config.id, config.id);
+        // Refer to (https://medium.com/@jitenderkmr/demystifying-snowflake-ids-a-unique-identifier-in-distributed-computing-72796a827c9d)
+        // Snowflakes are 64 bits in binary. (Only 63 are used to fit in a signed integer.)
+        // The first 41 bits are a timestamp, representing milliseconds since the chosen epoch.
+        // The next 10 bits represent a machine ID (aka node ID), preventing clashes.
+        // Twelve more bits represent a per-machine sequence number (aka step), to allow creation of multiple
+        // snowflakes in the same millisecond. The final number is generally serialized in decimal.
+        let discord_epoch = std::time::UNIX_EPOCH + Duration::from_millis(1420070400000);
+        let node = SnowflakeIdGenerator::with_epoch(config.id, config.id, discord_epoch);
 
         let tcp_stream_factory =
             TCPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
