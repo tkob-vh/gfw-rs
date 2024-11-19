@@ -32,7 +32,7 @@ pub struct ModifierEntry {
 
 pub async fn read_expr_rules_from_file(
     path: &str,
-) -> Result<Vec<ExprRule>, Box<dyn std::error::Error>> {
+) -> Result<Vec<ExprRule>, Box<dyn std::error::Error + Send + Sync>> {
     let mut file = File::open(path).await?;
     let mut contents = String::new();
     file.read_to_string(&mut contents).await?;
