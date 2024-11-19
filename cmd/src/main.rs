@@ -33,7 +33,7 @@ async fn main() {
         vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
 
     // Setup logger
-    let _subscriber = tracing_subscriber::FmtSubscriber::builder()
+    tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
         .with_target(false)
         .with_thread_ids(true)

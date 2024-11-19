@@ -30,18 +30,21 @@ const DEFAULT_TCP_TIMEOUT: Duration = Duration::from_secs(600);
 const DEFAULT_UDP_MAX_STREAMS: u32 = 4096;
 const TCP_FLUSH_INTERVAL: Duration = Duration::from_secs(60);
 
+type SetVerdict = Box<
+    dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
+        + Send
+        + Sync,
+>;
+
 pub struct WorkerPacket {
     pub stream_id: i32,
 
     pub packet: Vec<u8>,
 
-    pub set_verdict: Box<
-        dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
-            + Send
-            + Sync,
-    >,
+    pub set_verdict: SetVerdict,
 }
 
+#[allow(dead_code)]
 pub struct Worker {
     id: i32,
 
