@@ -16,6 +16,13 @@ use tracing::{self, error, warn};
 /// A DNS modifier that implements the `Modifier` trait.
 pub struct DNSModifier;
 
+impl DNSModifier {
+    /// Construct a empty DNSModifier.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Modifier for DNSModifier {
     fn name(&self) -> &str {
         "dns"
