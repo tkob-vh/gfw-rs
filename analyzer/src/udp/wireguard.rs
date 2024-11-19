@@ -70,6 +70,12 @@ impl WireGuardAnalyzer {
     }
 }
 
+impl Default for WireGuardAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Analyzer for WireGuardAnalyzer {
     fn name(&self) -> &str {
         "wireguard"

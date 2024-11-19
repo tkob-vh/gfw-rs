@@ -40,6 +40,12 @@ impl DNSAnalyzer {
     }
 }
 
+impl Default for DNSAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Analyzer for DNSAnalyzer {
     fn name(&self) -> &str {
         "dns"

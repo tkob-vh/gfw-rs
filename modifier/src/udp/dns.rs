@@ -23,6 +23,12 @@ impl DNSModifier {
     }
 }
 
+impl Default for DNSModifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Modifier for DNSModifier {
     fn name(&self) -> &str {
         "dns"
