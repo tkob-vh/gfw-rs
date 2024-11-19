@@ -33,6 +33,13 @@ const DNS_UDP_INVALID_COUNT_THRESHOLD: u32 = 4;
 /// `Analyzer`).
 pub struct DNSAnalyzer {}
 
+impl DNSAnalyzer {
+    /// Construct a empty DNSAnalyzer
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Analyzer for DNSAnalyzer {
     fn name(&self) -> &str {
         "dns"

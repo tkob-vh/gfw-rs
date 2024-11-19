@@ -63,6 +63,13 @@ const WIREGUARD_SIZE_PACKET_COOKIE_REPLY: u32 = 64;
 
 pub struct WireGuardAnalyzer {}
 
+impl WireGuardAnalyzer {
+    /// Construct a empty WireGuardAnalyzer.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Analyzer for WireGuardAnalyzer {
     fn name(&self) -> &str {
         "wireguard"

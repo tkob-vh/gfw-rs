@@ -9,6 +9,13 @@ use crate::*;
 /// HTTPAnalyzer is an analyzer for HTTP protocol.
 pub struct HTTPAnalyzer {}
 
+impl HTTPAnalyzer {
+    /// Construct a empty HTTPAnalyzer.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Analyzer for HTTPAnalyzer {
     fn name(&self) -> &str {
         "http"

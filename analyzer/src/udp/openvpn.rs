@@ -48,6 +48,13 @@ const OPENVPN_UDP_PKT_DEFAULT_LIMIT: u32 = 256;
 /// This struct is responsible for creating new UDP and TCP streams for OpenVPN analysis.
 pub struct OpenVPNAnalyzer {}
 
+impl OpenVPNAnalyzer {
+    /// Construct a empty OpenVPNAnalyzer
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Analyzer for OpenVPNAnalyzer {
     fn name(&self) -> &str {
         "openvpn"
