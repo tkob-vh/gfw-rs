@@ -307,14 +307,14 @@ pub struct NFQueuePacketIO {
 #[derive(Debug, Clone)]
 pub struct NFQueuePacketIOConfig {
     /// The maximum number of packets that can be queued in the NFQUEUE.
-    queue_size: u32,
+    pub queue_size: u32,
     //read_buffer: u32,
     //write_buffer: u32,
     /// A boolean flag indicating whether the packet processing is in local mode.
-    local: bool,
+    pub local: bool,
 
     /// A boolean flag indicating whether TCP reset is enabled for dropped packets.
-    rst: bool,
+    pub rst: bool,
 }
 
 impl Default for NFQueuePacketIOConfig {
