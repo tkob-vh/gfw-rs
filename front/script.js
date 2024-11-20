@@ -15,7 +15,7 @@ function toggleAccordion(header) {
 // 加载折叠状态
 function loadAccordionState() {
     const accordionHeaders = document.querySelectorAll('.accordion-header');
-    
+
     accordionHeaders.forEach(header => {
         const sectionId = header.textContent.trim(); // 使用折叠区域的标题作为唯一标识
         const state = localStorage.getItem(sectionId);
@@ -69,10 +69,10 @@ function saveConfig() {
         .then(response => {
             if (response.ok) {
                 alert('保存配置成功');
-            } else if (response.status === 422){
+            } else if (response.status === 422) {
                 alert('保存配置失败: 配置不全');
             } else {
-                throw new Error('网络响应错误: '+response.status);
+                throw new Error('网络响应错误: ' + response.status);
             }
         })
         .catch(error => {
@@ -110,7 +110,7 @@ function addRule() {
     const newRule = document.createElement('div');
     newRule.setAttribute('id', 'rule-' + ruleId);  // 设置唯一 ID
     newRule.classList.add('rule-item');
-    
+
     newRule.innerHTML = `
         <input type="text" placeholder="Name" style="font-size: 12px; width: 150px;">
         
@@ -133,7 +133,7 @@ function addRule() {
         
         <button class="button button-delete" onclick="deleteRule(${ruleId})">删除</button>
     `;
-    
+
     // 将新规则添加到容器中
     rulesContainer.appendChild(newRule);
     ruleId++; // 更新规则ID，确保每个规则都有唯一的ID
@@ -222,7 +222,7 @@ function saveRules() {
 function loadRules() {
     const rules = JSON.parse(localStorage.getItem('rules'));
     const rulesContainer = document.getElementById('rules-container');
-    
+
     // 如果存在规则数据
     if (rules) {
         rules.forEach((rule, index) => {
@@ -248,7 +248,7 @@ function loadRules() {
                 <input type="text" value="${rule.expr}" placeholder="Expr" style="width: 300px;">
                 <button class="button button-delete" onclick="deleteRule(${index})">删除</button>
             `;
-            
+
             // 将新规则添加到容器中
             rulesContainer.appendChild(ruleDiv);
         });
@@ -272,21 +272,15 @@ function toggleService(button) {
     if (button.textContent === '启动服务') {
         // 启动服务的 API 请求
         fetch('/service/start', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(response => {
+                if (response.ok) {
+                    alert('启动成功');
                     button.textContent = '关闭服务';
                     logContainer.style.display = 'block';
-                    // // 假设服务端返回的data.logs是日志数组
-                    // data.logs.forEach(log => {
-                    //     const logEntry = document.createElement('div');
-                    //     logEntry.textContent = log;
-                    //     logs.appendChild(logEntry);
-                    // });
-                    // // 可能需要设置WebSocket连接来接收实时日志
-                    // setupWebSocket(logs);
+                    // 设置WebSocket连接来接收实时日志
+                    setupWebSocket(logs);
                 } else {
-                    alert('服务启动失败');
+                    throw new Error('网络响应错误: ' + response.status);
                 }
             })
             .catch(error => {
@@ -296,14 +290,14 @@ function toggleService(button) {
     } else {
         // 关闭服务的 API 请求
         fetch('/service/stop', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(response => {
+                if (response.ok) {
+                    alert('关闭成功');
                     button.textContent = '启动服务';
                     logContainer.style.display = 'none';
                     logs.innerHTML = ''; // 清空日志
                 } else {
-                    alert('服务关闭失败');
+                    throw new Error('网络响应错误: ' + response.status);
                 }
             })
             .catch(error => {
@@ -314,11 +308,14 @@ function toggleService(button) {
 }
 
 function setupWebSocket(logs) {
-    const ws = new WebSocket('ws://yourserver.com/path');
+    const host = window.location.host;
+    const wsUrl = `ws://${host}/ws`
+    const ws = new WebSocket(wsUrl);
     ws.onmessage = function (event) {
         const logEntry = document.createElement('div');
         logEntry.textContent = event.data;
         logs.appendChild(logEntry);
+        logs.scrollTop = logs.scrollHeight; // 自动滚动到最新日志
     };
     ws.onerror = function () {
         console.error('WebSocket error');
