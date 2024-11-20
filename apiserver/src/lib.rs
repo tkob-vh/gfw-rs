@@ -1,9 +1,17 @@
-use tokio::sync::broadcast;
+use nt_analyzer::Analyzer;
+use nt_cmd::config;
+use nt_io::PacketIO;
+use nt_modifier::Modifier;
+use nt_ruleset::expr_rule::ExprRuleset;
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc::Sender, Mutex, RwLock};
 use tracing_subscriber::fmt::MakeWriter;
 
 pub mod file;
 pub mod save;
 pub mod service;
+
+type SharedServerConfig = Arc<RwLock<ServerConfig>>;
 
 #[derive(Clone)]
 pub struct LogWriter {
@@ -41,7 +49,17 @@ impl std::io::Write for LogWriter {
     }
 }
 
+/// The server configuration.
 #[derive(Clone)]
 pub struct ServerConfig {
+    /// The log writer, used to write logs.
     pub log_writer: LogWriter,
+    pub analyzers: Vec<Arc<dyn Analyzer>>,
+    pub modifiers: Vec<Arc<dyn Modifier>>,
+    pub config: Arc<config::CliConfig>,
+    /// _
+    pub rule_set: Option<Arc<ExprRuleset>>,
+    pub io_impl: Option<Arc<dyn PacketIO>>,
+    pub engine: Option<Arc<Mutex<nt_engine::engine::Engine>>>,
+    pub shutdown: Option<Arc<Sender<()>>>,
 }

@@ -204,13 +204,10 @@ function saveRules() {
         .then(response => {
             if (response.ok) {
                 alert('规则已保存');
-                return response.json();
+                return response;
             } else {
                 throw new Error('服务器出错');
             }
-        })
-        .then(data => {
-            console.log('服务器返回:', data);
         })
         .catch(error => {
             console.error('保存失败:', error);
