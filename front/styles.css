@@ -137,6 +137,17 @@ h1 {
     background-color: #c82333;
 }
 
+.button-logs {
+    background-color: #007bff;
+    color: white;
+    width: 100%;
+    margin-top: 30px;
+}
+
+.button-logs:hover {
+    background-color: #007bff;
+}
+
 /* 规则项样式 */
 .rule-item {
     display: flex;
