@@ -1,10 +1,18 @@
-use axum::{routing::post, Router};
+use axum::{
+    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    response::IntoResponse,
+    routing::{get, post},
+    Extension, Router,
+};
+
+use crate::ServerConfig;
 use serde_json::json;
 
 pub async fn create_router() -> Router {
     Router::new()
         .route("/service/start", post(start_service))
         .route("/service/stop", post(stop_service))
+        .route("/ws", get(ws_handler))
 }
 
 async fn start_service() -> String {
@@ -19,4 +27,23 @@ async fn stop_service() -> String {
         "message": "stop service"
     })
     .to_string()
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    Extension(server): Extension<ServerConfig>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| handle_websocket(socket, server))
+}
+
+async fn handle_websocket(mut ws: WebSocket, server: ServerConfig) {
+    let mut rx = server.log_writer.subscribe().await;
+
+    tokio::spawn(async move {
+        while let Ok(log) = rx.recv().await {
+            if ws.send(Message::Text(log)).await.is_err() {
+                break;
+            }
+        }
+    });
 }
