@@ -153,6 +153,7 @@ pub trait UDPStream: Send + Sync {
 pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Send + Sync>>;
 
 /// Combined Property Map.
+/// analyzer -> PropMap
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
 /// The `PropUpdateType` enum defines the types of property updates that can occur.

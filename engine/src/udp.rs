@@ -109,6 +109,11 @@ impl UDPStreamFactory {
             props: nt_analyzer::CombinedPropMap::new(),
         };
 
+        info!(
+            "New UDP stream: worker_id = {:?}, id = {:?}, src = {:?}, dst = {:?}",
+            self.worker_id, id, src_ip, dst_ip
+        );
+
         // Get the ruleset from the tcp stream factory.
         let rs = self.ruleset.read().await;
 
@@ -187,7 +192,7 @@ impl UDPStreamManager {
         })
     }
 
-    /// Matches a stream with the given context.
+    /// Matches the udp packet with a stream with the given context.
     ///
     /// # Arguments
     ///
