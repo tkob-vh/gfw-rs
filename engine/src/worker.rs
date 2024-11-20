@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::error;
+use tracing::{error, info};
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -313,8 +313,12 @@ impl Worker {
     ///
     /// * `timeout` - The duration after which TCP streams should be flushed.
     async fn flush_tcp(&mut self, timeout: Duration) {
-        let (_flushed, _closed) = self.tcp_stream_manager.flush_older_than(timeout);
-        todo!("To be implemented.");
+        let (flushed, closed) = self.tcp_stream_manager.flush_close_older_than(timeout);
+
+        info!(
+            "[TCP flush]: worker_id: {:?}, flushed: {:?}, closed: {:?}",
+            self.id, flushed, closed
+        );
     }
 
     /// Handles a UDP packet.

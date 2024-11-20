@@ -8,7 +8,7 @@ use nt_analyzer::{self, CombinedPropMap, PropUpdate, PropUpdateType};
 /// # Arguments
 ///
 /// * `cpm` - A mutable reference to the CombinedPropMap to be updated.
-/// * `name` - The name of the property to be updated.
+/// * `name` - The name of the analyzer.
 /// * `update` - An optional PropUpdate containing the update details.
 ///
 /// # Returns
@@ -19,13 +19,14 @@ pub fn process_prop_update(
     name: &str,
     update: Option<PropUpdate>,
 ) -> bool {
-    // Check if the update is Some and not None
+    // Check if the property update is Some and not None
     if let Some(update) = update {
         match update.update_type {
             // If the update type is None, return false
             PropUpdateType::None => false,
 
-            // If the update type is Merge, merge the properties
+            // If the update type is Merge, merge the properties with those in the cpm if they have
+            // the same analyzer.
             PropUpdateType::Merge => {
                 let map = cpm.entry(name.to_string()).or_default();
                 for (k, v) in update.map.iter() {
@@ -34,7 +35,7 @@ pub fn process_prop_update(
                 true
             }
 
-            // If the update type is Replace, replace the properties
+            // If the update type is Replace, replace the properties.
             PropUpdateType::Replace => {
                 cpm.insert(name.to_owned(), update.map);
                 true
