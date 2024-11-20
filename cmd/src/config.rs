@@ -8,7 +8,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncReadExt, BufReader};
 
 /// Main configuration struct that holds all configuration options for the application.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct CliConfig {
     /// IO configuration defining input/output-related parameters.
     #[serde(default)]

@@ -1,11 +1,10 @@
+use crate::SharedServerConfig;
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::IntoResponse,
     routing::{get, post},
     Extension, Router,
 };
-
-use crate::ServerConfig;
 use serde_json::json;
 
 pub async fn create_router() -> Router {
@@ -30,14 +29,16 @@ async fn stop_service() -> String {
 }
 
 async fn ws_handler(
+    server: Extension<SharedServerConfig>,
     ws: WebSocketUpgrade,
-    Extension(server): Extension<ServerConfig>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_websocket(socket, server))
 }
 
-async fn handle_websocket(mut ws: WebSocket, server: ServerConfig) {
-    let mut rx = server.log_writer.subscribe().await;
+async fn handle_websocket(mut ws: WebSocket, server: Extension<SharedServerConfig>) {
+    let config = server.read().await;
+
+    let mut rx = config.log_writer.subscribe().await;
 
     tokio::spawn(async move {
         while let Ok(log) = rx.recv().await {

@@ -52,12 +52,12 @@ async fn main() {
         .unwrap();
 
     // Load ruleset file
-    let rules = read_expr_rules_from_file(&cli.ruleset_file)
+    let raw_rs = read_expr_rules_from_file(&cli.ruleset_file)
         .await
         .map_err(|e| format!("failed to parse ruleset file: {}", e))
         .unwrap();
     info!("{:?}", config);
-    info!("{:?}", rules);
+    info!("{:?}", raw_rs);
 
     // Setup IO
     let io_impl: Arc<dyn nt_io::PacketIO> = if cli.pcap_file.is_some() {
@@ -83,10 +83,8 @@ async fn main() {
     };
 
     // Setup ruleset
-    let raw_rs = nt_ruleset::expr_rule::read_expr_rules_from_file(&cli.ruleset_file).await;
     let engine = Arc::new(rhai::Engine::new());
-    let rs =
-        nt_ruleset::expr_rule::compile_expr_rules(raw_rs.unwrap(), &analyzers, &modifiers, engine);
+    let rs = nt_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, engine);
 
     // Setup engine
     let engine_config = nt_engine::Config {
