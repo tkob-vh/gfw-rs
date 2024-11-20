@@ -37,7 +37,7 @@ async fn main() {
     }))));
 
     let _subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .with_writer(log_writer)
         .with_target(false)
         .with_thread_ids(true)

@@ -263,9 +263,6 @@ window.onload = function () {
 
 
 function toggleService(button) {
-    const logContainer = document.getElementById('log-container');
-    const logs = document.getElementById('logs');
-
     if (button.textContent === '启动服务') {
         // 启动服务的 API 请求
         fetch('/service/start', { method: 'POST' })
@@ -273,9 +270,6 @@ function toggleService(button) {
                 if (response.ok) {
                     alert('启动成功');
                     button.textContent = '关闭服务';
-                    logContainer.style.display = 'block';
-                    // 设置WebSocket连接来接收实时日志
-                    setupWebSocket(logs);
                 } else {
                     throw new Error('网络响应错误: ' + response.status);
                 }
@@ -291,8 +285,6 @@ function toggleService(button) {
                 if (response.ok) {
                     alert('关闭成功');
                     button.textContent = '启动服务';
-                    logContainer.style.display = 'none';
-                    logs.innerHTML = ''; // 清空日志
                 } else {
                     throw new Error('网络响应错误: ' + response.status);
                 }
@@ -304,10 +296,35 @@ function toggleService(button) {
     }
 }
 
+let ws = null;  // WebSocket 实例
+
+function toggleLogs(button) {
+    const logContainer = document.getElementById('log-container');
+    const logs = document.getElementById('logs');
+
+    if (button.textContent === '查看日志') {
+        button.textContent = '关闭日志';
+        logContainer.style.display = 'block';
+        // 设置WebSocket连接来接收实时日志
+        setupWebSocket(logs);
+    } else {
+        alert('关闭成功');
+        button.textContent = '查看日志';
+        logContainer.style.display = 'none';
+        logs.innerHTML = ''; // 清空日志
+        if (ws) {
+            ws.close();  // 关闭 WebSocket 连接
+        }
+    }
+}
+
 function setupWebSocket(logs) {
     const host = window.location.host;
     const wsUrl = `ws://${host}/ws`
-    const ws = new WebSocket(wsUrl);
+    if (ws) {
+        ws.close();  // 如果已经存在 WebSocket 连接，则先关闭
+    }
+    ws = new WebSocket(wsUrl);
     ws.onmessage = function (event) {
         const logEntry = document.createElement('div');
         logEntry.textContent = event.data;
