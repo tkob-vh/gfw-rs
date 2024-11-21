@@ -49,9 +49,6 @@ function saveConfig() {
         ruleset: {
             geoip: document.getElementById('geoip').value,
             geosite: document.getElementById('geosite').value
-        },
-        replay: {
-            realtime: document.getElementById('realtime').checked
         }
     };
 
@@ -98,7 +95,6 @@ function loadConfig() {
         document.getElementById('udp_max_streams').value = config.workers.udp_max_streams;
         document.getElementById('geoip').value = config.ruleset.geoip;
         document.getElementById('geosite').value = config.ruleset.geosite;
-        document.getElementById('realtime').checked = config.replay.realtime;
     }
 }
 
