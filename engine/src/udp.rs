@@ -208,7 +208,7 @@ impl UDPStreamManager {
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
         udp_context: &mut UDPContext,
-    ) {
+    ) -> (nt_io::Verdict, Option<Vec<u8>>) {
         let mut reverse = false;
         let src_port = udp_packet.get_source();
         let dst_port = udp_packet.get_destination();
@@ -254,6 +254,44 @@ impl UDPStreamManager {
             if value.stream.accept(udp_packet, reverse, udp_context) {
                 value.stream.feed(udp_packet, reverse, udp_context);
             }
+        }
+
+        // Modify the payload of the packet and its checksum.
+        let verdict: nt_io::Verdict = udp_context.verdict.clone().into();
+        if matches!(verdict, nt_io::Verdict::AcceptModify) && !udp_context.packet.is_empty() {
+            udp_packet.set_payload(&udp_context.packet);
+
+            match src_ip {
+                IpAddr::V4(src_ipv4) => match dst_ip {
+                    IpAddr::V4(dst_ipv4) => {
+                        udp_packet.set_checksum(pnet::packet::udp::ipv4_checksum(
+                            &udp_packet.to_immutable(),
+                            &src_ipv4,
+                            &dst_ipv4,
+                        ));
+
+                        (verdict, Some(udp_packet.packet().to_vec()))
+                    }
+                    IpAddr::V6(_dst_ipv6) => {
+                        error!("The version of src_ip and dst_ip does not match");
+                        (verdict, None)
+                    }
+                },
+                IpAddr::V6(src_ipv6) => match dst_ip {
+                    IpAddr::V4(_dst_ipv4) => (verdict, None),
+                    IpAddr::V6(dst_ipv6) => {
+                        udp_packet.set_checksum(pnet::packet::udp::ipv6_checksum(
+                            &udp_packet.to_immutable(),
+                            &src_ipv6,
+                            &dst_ipv6,
+                        ));
+
+                        (verdict, Some(udp_packet.packet().to_vec()))
+                    }
+                },
+            }
+        } else {
+            (verdict, None)
         }
     }
 }

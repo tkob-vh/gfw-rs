@@ -209,7 +209,7 @@ impl Worker {
                 }
                 IpNextHeaderProtocols::Udp => {
                     if let Some(mut udp_packet) = MutableUdpPacket::new(ipv4.payload_mut()) {
-                        let (verdict, modified) = self
+                        return self
                             .handle_udp(
                                 stream_id,
                                 IpAddr::V4(src_ip),
@@ -217,15 +217,6 @@ impl Worker {
                                 &mut udp_packet,
                             )
                             .await;
-
-                        match verdict {
-                            nt_io::Verdict::AcceptModify if modified.is_some() => {
-                                // Serialize modified packet.
-                                todo!("Implement packet serialization.");
-                                return (verdict, modified);
-                            }
-                            _ => return (verdict, None),
-                        }
                     }
                 }
                 _ => {}
@@ -250,7 +241,7 @@ impl Worker {
                 }
                 IpNextHeaderProtocols::Udp => {
                     if let Some(mut udp_packet) = MutableUdpPacket::new(ipv6.payload_mut()) {
-                        let (verdict, modified) = self
+                        return self
                             .handle_udp(
                                 stream_id,
                                 IpAddr::V6(src_ip),
@@ -258,15 +249,6 @@ impl Worker {
                                 &mut udp_packet,
                             )
                             .await;
-
-                        match verdict {
-                            nt_io::Verdict::AcceptModify if modified.is_some() => {
-                                // Serialize modified packet.
-                                todo!("Implement packet serialization.");
-                                return (verdict, modified);
-                            }
-                            _ => return (verdict, None),
-                        }
                     }
                 }
                 _ => {}
@@ -347,16 +329,16 @@ impl Worker {
 
         self.udp_stream_manager
             .match_with_context(stream_id, src_ip, dst_ip, udp_packet, &mut udp_context)
-            .await;
+            .await
 
-        (
-            udp_context.verdict.into(),
-            if udp_context.packet.is_empty() {
-                None
-            } else {
-                Some(udp_context.packet.to_vec())
-            },
-        )
+        //(
+        //    udp_context.verdict.into(),
+        //    if udp_context.packet.is_empty() {
+        //        None
+        //    } else {
+        //        Some(udp_context.packet.to_vec())
+        //    },
+        //)
     }
 }
 
