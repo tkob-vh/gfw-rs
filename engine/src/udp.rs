@@ -278,7 +278,10 @@ impl UDPStreamManager {
                     }
                 },
                 IpAddr::V6(src_ipv6) => match dst_ip {
-                    IpAddr::V4(_dst_ipv4) => (verdict, None),
+                    IpAddr::V4(_dst_ipv4) => {
+                        error!("The version of src_ip and dst_ip does not match");
+                        (verdict, None)
+                    }
                     IpAddr::V6(dst_ipv6) => {
                         udp_packet.set_checksum(pnet::packet::udp::ipv6_checksum(
                             &udp_packet.to_immutable(),
