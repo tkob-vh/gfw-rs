@@ -19,3 +19,4 @@ nt-ruleset.workspace = true
 nt-io.workspace = true
 rhai.workspace = true
 nt-engine.workspace = true
+snafu.workspace = true

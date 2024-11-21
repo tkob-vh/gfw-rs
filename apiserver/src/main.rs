@@ -50,13 +50,5 @@ async fn main() {
     tracing::info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
-    tokio::spawn(async {
-        // 展示效果，后面记得删掉
-        loop {
-            info!("This is a log message");
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        }
-    });
-
     axum::serve(listener, app).await.unwrap();
 }
