@@ -298,22 +298,19 @@ function toggleService(button) {
 
 let ws = null;  // WebSocket 实例
 
-function toggleLogs(button) {
+function toggleLogs() {
     const logContainer = document.getElementById('log-container');
     const logs = document.getElementById('logs');
 
-    if (button.textContent === '查看日志') {
-        button.textContent = '关闭日志';
+    // If the log container is currently hidden, show it
+    if (logContainer.style.display === 'none' || logContainer.style.display === '') {
         logContainer.style.display = 'block';
-        // 设置WebSocket连接来接收实时日志
-        setupWebSocket(logs);
+        setupWebSocket(logs); // Set up WebSocket connection to receive logs
     } else {
-        alert('关闭成功');
-        button.textContent = '查看日志';
-        logContainer.style.display = 'none';
-        logs.innerHTML = ''; // 清空日志
+        logContainer.style.display = 'none'; // Hide the log container
+        logs.innerHTML = ''; // Clear logs if hiding
         if (ws) {
-            ws.close();  // 关闭 WebSocket 连接
+            ws.close(); // Close WebSocket connection
         }
     }
 }
@@ -337,4 +334,32 @@ function setupWebSocket(logs) {
     ws.onclose = function () {
         console.log('WebSocket connection closed');
     };
+}
+
+function showTab(tabName) {
+    const tabs = document.querySelectorAll('.tab-content');
+    const tabButtons = document.querySelectorAll('.tab-button');
+
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    tabButtons.forEach(button => {
+        button.classList.remove('active');
+    });
+
+    const selectedTab = document.getElementById(tabName);
+    selectedTab.classList.add('active');
+    document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
+
+    // Automatically show logs if the logs tab is selected
+    if (tabName === 'logs') {
+        const logContainer = document.getElementById('log-container');
+        logContainer.style.display = 'block'; // Show the log container
+        toggleLogs(); // Call the function to set up WebSocket or any other log-related setup
+    } else {
+        // Hide the log container if another tab is selected
+        const logContainer = document.getElementById('log-container');
+        logContainer.style.display = 'none';
+    }
 }

@@ -10,106 +10,119 @@
 
 <body>
     <div class="container">
-        <h1>配置与规则管理</h1>
+        <div class="header">
+            <img src="/front/assets/camera.png" alt="Header Image" class="header-image">
+            <button class="button button-start" onclick="toggleService(this)">启动服务</button>
+        </div>
 
-        <div class="accordion">
-            <!-- IO Configuration -->
-            <div class="accordion-item">
-                <button class="accordion-header" onclick="toggleAccordion(this)">
-                    <span class="accordion-title">IO 配置</span>
-                </button>
-                <div class="accordion-body">
-                    <div class="input-field">
-                        <label for="queue_size">队列大小:</label>
-                        <input type="number" id="queue_size" value="1024">
-                    </div>
-                    <div class="input-field">
-                        <label for="rcv_buf">接收缓冲区:</label>
-                        <input type="number" id="rcv_buf" value="4194304">
-                    </div>
-                    <div class="input-field">
-                        <label for="snd_buf">发送缓冲区:</label>
-                        <input type="number" id="snd_buf" value="4194304">
-                    </div>
-                    <div class="input-field">
-                        <label for="local">本地:</label>
-                        <input type="checkbox" id="local" checked>
-                    </div>
-                    <div class="input-field">
-                        <label for="rst">RST:</label>
-                        <input type="checkbox" id="rst">
-                    </div>
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('config')">配置</button>
+            <button class="tab-button" onclick="showTab('logs')">日志</button>
+            <button class="tab-button" onclick="showTab('rules')">规则</button>
+        </div>
+
+        <div id="config" class="tab-content active">
+            <h2>配置</h2>
+            <div class="config-card">
+                <h3>IO 配置</h3>
+                <div class="input-field">
+                    <label for="queue_size">队列大小:</label>
+                    <input type="number" id="queue_size" value="1024">
+                </div>
+                <div class="input-field">
+                    <label for="rcv_buf">接收缓冲区:</label>
+                    <input type="number" id="rcv_buf" value="4194304">
+                </div>
+                <div class="input-field">
+                    <label for="snd_buf">发送缓冲区:</label>
+                    <input type="number" id="snd_buf" value="4194304">
+                </div>
+                <div class="input-field">
+                    <label for="local">本地:</label>
+                    <input type="checkbox" id="local" checked>
+                </div>
+                <div class="input-field">
+                    <label for="rst">RST:</label>
+                    <input type="checkbox" id="rst">
                 </div>
             </div>
 
-            <!-- Workers Configuration -->
-            <div class="accordion-item">
-                <button class="accordion-header" onclick="toggleAccordion(this)">
-                    <span class="accordion-title">Workers 配置</span>
-                </button>
-                <div class="accordion-body">
-                    <div class="input-field">
-                        <label for="workers_count">工作线程数:</label>
-                        <input type="number" id="workers_count" value="4">
-                    </div>
-                    <div class="input-field">
-                        <label for="workers_queue_size">工作队列大小:</label>
-                        <input type="number" id="workers_queue_size" value="64">
-                    </div>
-                    <div class="input-field">
-                        <label for="tcp_max_buffered_pages_total">TCP最大缓存页面总数:</label>
-                        <input type="number" id="tcp_max_buffered_pages_total" value="65536">
-                    </div>
-                    <div class="input-field">
-                        <label for="tcp_max_buffered_pages_per_conn">每连接最大缓存页面数:</label>
-                        <input type="number" id="tcp_max_buffered_pages_per_conn" value="16">
-                    </div>
-                    <div class="input-field">
-                        <label for="tcp_timeout">TCP超时 (秒):</label>
-                        <input type="number" id="tcp_timeout" value="600">
-                    </div>
-                    <div class="input-field">
-                        <label for="udp_max_streams">UDP最大流数:</label>
-                        <input type="number" id="udp_max_streams" value="4096">
-                    </div>
+            <div class="config-card">
+                <h3>Workers 配置</h3>
+                <div class="input-field">
+                    <label for="workers_count">工作线程数:</label>
+                    <input type="number" id="workers_count" value="4">
+                </div>
+                <div class="input-field">
+                    <label for="workers_queue_size">工作队列大小:</label>
+                    <input type="number" id="workers_queue_size" value="64">
+                </div>
+                <div class="input-field">
+                    <label for="tcp_max_buffered_pages_total">TCP最大缓存页面总数:</label>
+                    <input type="number" id="tcp_max_buffered_pages_total" value="65536">
+                </div>
+                <div class="input-field">
+                    <label for="tcp_max_buffered_pages_per_conn">每连接最大缓存页面数:</label>
+                    <input type="number" id="tcp_max_buffered_pages_per_conn" value="16">
+                </div>
+                <div class="input-field">
+                    <label for="tcp_timeout">TCP超时 (秒):</label>
+                    <input type="number" id="tcp_timeout" value="600">
+                </div>
+                <div class="input-field">
+                    <label for="udp_max_streams">UDP最大流数:</label>
+                    <input type="number" id="udp_max_streams" value="4096">
                 </div>
             </div>
 
-            <!-- Ruleset Configuration -->
-            <div class="accordion-item">
-                <button class="accordion-header" onclick="toggleAccordion(this)">
-                    <span class="accordion-title">规则集配置</span>
-                </button>
-                <div class="accordion-body">
-                    <div class="input-field">
-                        <label for="geoip">GeoIP路径:</label>
-                        <input type="text" id="geoip" value="/path/to/geoip">
-                    </div>
-                    <div class="input-field">
-                        <label for="geosite">GeoSite路径:</label>
-                        <input type="text" id="geosite" value="/path/to/geosite">
-                    </div>
+            <div class="config-card">
+                <h3>规则集配置</h3>
+                <div class="input-field">
+                    <label for="geoip">GeoIP路径:</label>
+                    <input type="text" id="geoip" value="/path/to/geoip">
+                </div>
+                <div class="input-field">
+                    <label for="geosite">GeoSite路径:</label>
+                    <input type="text" id="geosite" value="/path/to/geosite">
                 </div>
             </div>
+
             <button class="button button-save" onclick="saveConfig()">保存配置</button>
         </div>
 
-        <div class="rules-section">
+        <div id="logs" class="tab-content">
+            <h3>服务日志</h3>
+            <div id="log-container" style="display:none;">
+                <div id="logs"></div>
+            </div>
+        </div>
+
+        <div id="rules" class="tab-content">
             <h2>规则</h2>
             <div id="rules-container"></div>
             <button class="button button-add" onclick="addRule()">+ 增加规则</button>
             <button class="button button-save" onclick="saveRules()">保存规则</button>
         </div>
-
-        <button class="button button-start" onclick="toggleService(this)">启动服务</button>
-        <button class="button button-logs" onclick="toggleLogs(this)">查看日志</button>
-        <div id="log-container" style="display:none;">
-            <h3>服务日志</h3>
-            <div id="logs"></div>
-        </div>
     </div>
 
     <script src="/script.js"></script>
+    <script>
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            const tabButtons = document.querySelectorAll('.tab-button');
+
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
+        }
+    </script>
 </body>
 
 </html>
