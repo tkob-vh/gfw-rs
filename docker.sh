@@ -16,7 +16,7 @@ if [ "$ACTION" == "build" ]; then
     fi
 
     echo "Running Docker container..."
-    if docker run -d -p 3000:3000 --name $CONTAINER_NAME $IMAGE_NAME; then
+    if docker run -d -p 3000:3000 --cap-add=NET_ADMIN --name $CONTAINER_NAME $IMAGE_NAME; then
         echo "Docker container started successfully."
     else
         echo "Failed to start Docker container."

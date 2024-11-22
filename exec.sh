@@ -1,1 +1,1 @@
-sudo docker exec -it nt-secure /bin/bash
+docker exec -it nt-secure /bin/bash
