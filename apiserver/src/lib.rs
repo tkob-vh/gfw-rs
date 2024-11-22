@@ -21,7 +21,7 @@ pub struct LogWriter {
 impl LogWriter {
     pub fn new(capacity: usize) -> Self {
         let (tx, _rx) = broadcast::channel(capacity);
-        Self { tx: tx }
+        Self { tx }
     }
 
     pub async fn subscribe(&self) -> broadcast::Receiver<String> {

@@ -36,7 +36,7 @@ async fn main() {
         shutdown: None,
     }))));
 
-    let _subscriber = tracing_subscriber::FmtSubscriber::builder()
+    tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::DEBUG)
         .with_writer(log_writer)
         .with_target(false)
@@ -47,7 +47,7 @@ async fn main() {
         .init();
 
     // Start the server
-    tracing::info!("Listening on {}", addr);
+    info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     axum::serve(listener, app).await.unwrap();
