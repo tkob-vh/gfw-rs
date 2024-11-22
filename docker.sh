@@ -8,7 +8,7 @@ CONTAINER_NAME="nt-secure"
 
 if [ "$ACTION" == "build" ]; then
     echo "Building Docker image..."
-    if sudo docker build -t $IMAGE_NAME .; then
+    if docker build -t $IMAGE_NAME .; then
         echo "Docker image built successfully."
     else
         echo "Failed to build Docker image."
@@ -16,7 +16,7 @@ if [ "$ACTION" == "build" ]; then
     fi
 
     echo "Running Docker container..."
-    if sudo docker run -d -p 3000:3000 --name $CONTAINER_NAME $IMAGE_NAME; then
+    if docker run -d -p 3000:3000 --name $CONTAINER_NAME $IMAGE_NAME; then
         echo "Docker container started successfully."
     else
         echo "Failed to start Docker container."
@@ -38,20 +38,20 @@ if [ "$ACTION" == "build" ]; then
 
 elif [ "$ACTION" == "clean" ]; then
     echo "Stopping and removing Docker container..."
-    if sudo docker stop $CONTAINER_NAME; then
+    if docker stop $CONTAINER_NAME; then
         echo "Container stopped."
     else
         echo "Failed to stop container or container not running."
     fi
 
-    if sudo docker rm $CONTAINER_NAME; then
+    if docker rm $CONTAINER_NAME; then
         echo "Container removed."
     else
         echo "Failed to remove container or container not found."
     fi
 
     echo "Removing Docker image..."
-    if sudo docker rmi $IMAGE_NAME; then
+    if docker rmi $IMAGE_NAME; then
         echo "Image removed."
     else
         echo "Failed to remove image or image not found."
