@@ -10,7 +10,7 @@ use nt_engine::Engine;
 use std::error::Error;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::info;
 
 use snafu::{ResultExt, Snafu};
 
