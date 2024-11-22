@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::{error, info};
+use tracing::{debug, error};
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -45,6 +45,7 @@ pub struct WorkerPacket {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Worker {
     id: i32,
 
@@ -129,6 +130,7 @@ impl Worker {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
+    #[tracing::instrument(level = "debug")]
     pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
@@ -297,7 +299,7 @@ impl Worker {
     async fn flush_tcp(&mut self, timeout: Duration) {
         let (flushed, closed) = self.tcp_stream_manager.flush_close_older_than(timeout);
 
-        info!(
+        debug!(
             "[TCP flush]: worker_id: {:?}, flushed: {:?}, closed: {:?}",
             self.id, flushed, closed
         );

@@ -1,12 +1,13 @@
 use nt_analyzer::Analyzer;
 use nt_modifier::Instance;
 use serde::Deserialize;
-use std::fmt;
+use std::fmt::{self, Debug};
 use std::net::IpAddr;
 use std::sync::Arc;
 
 pub mod expr_rule;
 
+#[derive(Debug)]
 pub enum Protocol {
     TCP,
     UDP,
@@ -32,6 +33,7 @@ pub enum Action {
     Modify,
 }
 
+#[derive(Debug)]
 pub struct StreamInfo {
     pub id: i64,
     pub protocol: Protocol,
@@ -48,7 +50,7 @@ pub struct MatchResult {
 }
 
 /// The ruleset trait.
-pub trait Ruleset: Send + Sync {
+pub trait Ruleset: Send + Sync + Debug {
     /// - returns the list of analyzers to use for a stream.
     ///
     /// It must be safe for concurrent use by multiple workers.

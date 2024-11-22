@@ -40,6 +40,7 @@ pub async fn read_expr_rules_from_file(
     Ok(expr_rules)
 }
 
+#[derive(Debug)]
 pub struct CompiledExprRule {
     pub name: String,
     pub action: Action,
@@ -47,6 +48,7 @@ pub struct CompiledExprRule {
     pub ast: rhai::AST,
 }
 
+#[derive(Debug)]
 pub struct ExprRuleset {
     pub engine: Arc<rhai::Engine>,
     pub rules: Vec<CompiledExprRule>,

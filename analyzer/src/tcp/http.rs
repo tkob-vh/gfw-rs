@@ -7,6 +7,7 @@ use bytes::BytesMut;
 use crate::*;
 
 /// HTTPAnalyzer is an analyzer for HTTP protocol.
+#[derive(Debug)]
 pub struct HTTPAnalyzer {}
 
 impl HTTPAnalyzer {

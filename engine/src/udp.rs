@@ -10,7 +10,7 @@ use lru::LruCache;
 use nt_modifier::UDPModifierInstance;
 use pnet::packet::{udp::MutableUdpPacket, MutablePacket, Packet};
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::utils::process_prop_update;
 
@@ -44,6 +44,7 @@ pub struct UDPContext {
 }
 
 /// Factory for creating UDP streams.
+#[derive(Debug)]
 pub struct UDPStreamFactory {
     worker_id: i32,
 
@@ -109,9 +110,9 @@ impl UDPStreamFactory {
             props: nt_analyzer::CombinedPropMap::new(),
         };
 
-        info!(
-            "New UDP stream: worker_id = {:?}, id = {:?}, src = {:?}, dst = {:?}",
-            self.worker_id, id, src_ip, dst_ip
+        debug!(
+            "[New UDP stream]: worker_id = {:?}, id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
+            self.worker_id, id, src_ip, src_port, dst_ip, dst_port
         );
 
         // Get the ruleset from the tcp stream factory.
@@ -167,6 +168,7 @@ impl UDPStreamFactory {
 }
 
 /// Manager for UDP streams.
+#[derive(Debug)]
 pub struct UDPStreamManager {
     factory: UDPStreamFactory,
     streams: LruCache<i32, UDPStreamValue>,
@@ -431,6 +433,16 @@ impl UDPStream {
         if updated || self.virgin {
             self.virgin = false;
 
+            debug!("[UDP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                self.info.props,
+                false,
+                );
+
             let result = self.ruleset.matches(&self.info);
 
             match result.action {
@@ -448,7 +460,14 @@ impl UDPStream {
                                 udp_context.verdict = UDPVerdict::AcceptModify;
                             }
                             None => {
-                                error!("Modifer error, fallback to Accept");
+                                error!(
+                                    "[Modifer error]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
+                                    self.info.id,
+                                    self.info.src_ip,
+                                    self.info.src_port,
+                                    self.info.dst_ip,
+                                    self.info.dst_port
+                                );
                                 udp_context.verdict = UDPVerdict::Accept;
                             }
                         }
@@ -456,9 +475,18 @@ impl UDPStream {
                 }
                 nt_ruleset::Action::Maybe => {}
                 action => {
-                    let (verdict, final_verdict) = action_to_udp_verdict(action);
+                    let (verdict, final_verdict) = action_to_udp_verdict(&action);
                     self.last_verdict = verdict.clone();
                     udp_context.verdict = verdict;
+
+                    info!("[UDP stream action]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
+                        self.info.id,
+                        self.info.src_ip,
+                        self.info.src_port,
+                        self.info.dst_ip,
+                        self.info.dst_port,
+                        &action
+                        );
 
                     if final_verdict {
                         self.close_active_entries();
@@ -470,6 +498,16 @@ impl UDPStream {
         if self.active_entries.is_empty() && matches!(udp_context.verdict, UDPVerdict::Accept) {
             self.last_verdict = UDPVerdict::AcceptStream;
             udp_context.verdict = UDPVerdict::AcceptStream;
+
+            debug!(
+                "[UDP stream no match]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                nt_ruleset::Action::Allow,
+            );
         }
     }
 
@@ -526,7 +564,15 @@ impl UDPStream {
         }
 
         if updated {
-            info!("UDPStreamPropUpdate");
+            debug!("[UDP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                self.info.props,
+                true,
+                );
         }
 
         self.done_entries.append(&mut self.active_entries);
@@ -557,7 +603,7 @@ struct UDPStreamEntry {
 /// # Returns
 ///
 /// A tuple containing the UDP verdict and a boolean indicating if the verdict is final.
-fn action_to_udp_verdict(action: nt_ruleset::Action) -> (UDPVerdict, bool) {
+fn action_to_udp_verdict(action: &nt_ruleset::Action) -> (UDPVerdict, bool) {
     match action {
         nt_ruleset::Action::Maybe => (UDPVerdict::Accept, false),
         nt_ruleset::Action::Allow => (UDPVerdict::AcceptStream, true),
