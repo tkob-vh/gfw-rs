@@ -267,12 +267,14 @@ function toggleService(button) {
                     alert('启动成功');
                     button.textContent = '关闭服务';
                 } else {
-                    throw new Error('网络响应错误: ' + response.status + ' ' + response.text);
+                    return response.text().then(text => {
+                        throw new Error('网络响应错误: ' + response.status + ' ' + text);
+                    });
                 }
             })
             .catch(error => {
                 console.error('Error starting service:', error);
-                alert('服务启动失败'+ error);
+                alert('服务启动失败' + error);
             });
     } else {
         // 关闭服务的 API 请求
@@ -282,12 +284,14 @@ function toggleService(button) {
                     alert('关闭成功');
                     button.textContent = '启动服务';
                 } else {
-                    throw new Error('网络响应错误: ' + response.status + ' ' + response.text);
+                    return response.text().then(text => {
+                        throw new Error('网络响应错误: ' + response.status + ' ' + text);
+                    });
                 }
             })
             .catch(error => {
                 console.error('Error stopping service:', error);
-                alert('服务关闭失败'+error);
+                alert('服务关闭失败' + error);
             });
     }
 }

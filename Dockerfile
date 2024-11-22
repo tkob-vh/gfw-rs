@@ -12,7 +12,7 @@ RUN cargo build --release
 FROM debian:latest
 
 RUN apt-get update && \
-    apt-get install -y libpcap-dev nftables curl
+    apt-get install -y libpcap-dev nftables curl iputils-ping
 
 WORKDIR /app
 
