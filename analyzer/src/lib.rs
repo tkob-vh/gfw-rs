@@ -6,10 +6,10 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
-use std::{any::Any, net::IpAddr, sync::Arc};
+use std::{any::Any, fmt::Debug, net::IpAddr, sync::Arc};
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
-pub trait Analyzer: Any + Send + Sync {
+pub trait Analyzer: Any + Send + Sync + Debug {
     /// Get the name of the analyzer.
     ///
     /// # Returns
@@ -182,6 +182,7 @@ mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+    #[derive(Debug)]
     struct DummyAnalyzer;
 
     impl Analyzer for DummyAnalyzer {
@@ -217,6 +218,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
     struct DummyTCPAnalyzer;
 
     impl Analyzer for DummyTCPAnalyzer {
@@ -251,6 +253,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
     struct DummyUDPAnalyzer;
 
     impl Analyzer for DummyUDPAnalyzer {

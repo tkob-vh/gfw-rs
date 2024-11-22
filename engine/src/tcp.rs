@@ -16,7 +16,7 @@ use lru::LruCache;
 use pnet::packet::{tcp::MutableTcpPacket, Packet};
 use snowflake::SnowflakeIdGenerator;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::utils::process_prop_update;
 
@@ -47,6 +47,7 @@ pub struct TCPContext {
 }
 
 /// TCPStreamFactory is responsible for creating new TCP streams and updating the ruleset.
+#[derive(Debug)]
 pub struct TCPStreamFactory {
     worker_id: i32,
 
@@ -115,9 +116,9 @@ impl TCPStreamFactory {
             props: nt_analyzer::CombinedPropMap::new(),
         };
 
-        info!(
-            "New TCP stream: worker_id = {:?}, id = {:?}, src = {:?}, dst = {:?}",
-            self.worker_id, id, src_ip, dst_ip
+        debug!(
+            "[New TCP stream]: worker_id = {:?}, id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
+            self.worker_id, id, src_ip, src_port, dst_ip, dst_port
         );
 
         // Get the ruleset from the tcp stream factory.
@@ -173,6 +174,7 @@ impl TCPStreamFactory {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct TCPStreamManager {
     factory: TCPStreamFactory,
     streams: LruCache<i32, TCPStreamValue>,
@@ -461,15 +463,35 @@ impl TCPStream {
         if updated || self.virgin {
             self.virgin = false;
 
+            debug!(
+                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                self.info.props, 
+                false,
+            );
+
             // Match the ruleset with the got properties.
             let result = self.ruleset.matches(&self.info);
 
             match result.action {
                 nt_ruleset::Action::Maybe | nt_ruleset::Action::Modify => {}
                 action => {
-                    let verdict = action_to_tcp_verdict(action);
+                    let verdict = action_to_tcp_verdict(&action);
                     self.last_verdict = verdict.clone();
                     context.verdict = verdict;
+                    info!(
+                        "[TCP stream action]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
+                        self.info.id,
+                        self.info.src_ip,
+                        self.info.src_port,
+                        self.info.dst_ip,
+                        self.info.dst_port,
+                        &action,
+                    );
                     self.close_active_entries();
                 }
             }
@@ -479,6 +501,16 @@ impl TCPStream {
         if self.active_entries.is_empty() && matches!(context.verdict, TCPVerdict::Accept) {
             self.last_verdict = TCPVerdict::AcceptStream;
             context.verdict = TCPVerdict::AcceptStream;
+            
+            debug!("[TCP stream no match]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                nt_ruleset::Action::Allow,
+                );
+
         }
     }
 
@@ -546,7 +578,17 @@ impl TCPStream {
         }
 
         if updated {
-            info!("TCP stream prop update");
+            debug!(
+                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                self.info.id,
+                self.info.src_ip,
+                self.info.src_port,
+                self.info.dst_ip,
+                self.info.dst_port,
+                self.info.props, 
+                true,
+            );
+
         }
 
         self.done_entries.append(&mut self.active_entries);
@@ -599,7 +641,7 @@ fn analyzer_to_tcp_analyzers(
 /// # Returns
 ///
 /// The corresponding TCPVerdict.
-fn action_to_tcp_verdict(action: nt_ruleset::Action) -> TCPVerdict {
+fn action_to_tcp_verdict(action: &nt_ruleset::Action) -> TCPVerdict {
     match action {
         nt_ruleset::Action::Maybe | nt_ruleset::Action::Allow | nt_ruleset::Action::Modify => {
             TCPVerdict::AcceptStream

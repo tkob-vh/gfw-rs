@@ -14,6 +14,7 @@ use std::{
 use tracing::{self, error, warn};
 
 /// A DNS modifier that implements the `Modifier` trait.
+#[derive(Debug)]
 pub struct DNSModifier;
 
 impl DNSModifier {
@@ -85,6 +86,7 @@ impl Modifier for DNSModifier {
 }
 
 /// An instance of the DNS modifier containing the IPv4 and IPv6 addresses.
+#[derive(Debug)]
 struct DNSModifierInstance {
     a: Ipv4Addr,
     aaaa: Ipv6Addr,

@@ -9,11 +9,12 @@
 
 pub mod udp;
 
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::{any::Any, collections::HashMap};
 
 /// The `Modifier` trait allows for the creation of new instances of modifiers with specific arguments.
-pub trait Modifier: Send + Sync {
+pub trait Modifier: Send + Sync + Debug {
     /// Returns the name of the modifier.
     fn name(&self) -> &str;
 
@@ -31,7 +32,7 @@ pub trait Modifier: Send + Sync {
 }
 
 /// The `Instance` trait is a marker trait for instances of modifiers.
-pub trait Instance: Any + Send + Sync {
+pub trait Instance: Any + Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
 }
 

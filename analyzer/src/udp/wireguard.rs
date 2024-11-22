@@ -61,6 +61,7 @@ const WIREGUARD_SIZE_PACKET_COOKIE_REPLY: u32 = 64;
 /// This structure is responsible for creating new instances of `WireGuardUDPStream`
 /// and providing basic information about the analyzer.
 
+#[derive(Debug)]
 pub struct WireGuardAnalyzer {}
 
 impl WireGuardAnalyzer {

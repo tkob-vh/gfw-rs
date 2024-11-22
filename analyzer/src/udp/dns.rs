@@ -31,6 +31,7 @@ const DNS_UDP_INVALID_COUNT_THRESHOLD: u32 = 4;
 
 /// `DNSAnalyzer` should implement traits `UDPAnalyzer` and `TCPAnalyzer`(which two implement trait
 /// `Analyzer`).
+#[derive(Debug)]
 pub struct DNSAnalyzer {}
 
 impl DNSAnalyzer {
