@@ -3,6 +3,7 @@ use axum::{routing::post, Extension, Json, Router};
 use nt_cmd::config::CliConfig;
 use nt_ruleset::expr_rule::ExprRule;
 use std::sync::Arc;
+use tracing::debug;
 
 pub async fn create_router() -> Router {
     Router::new()
@@ -16,7 +17,8 @@ async fn save_config(
 ) {
     let mut server_config = server.write().await;
     server_config.config = Arc::new(config);
-    println!("Saved config: {:?}", server_config.config);
+    debug!("Saved config: {:?}", server_config.config);
+    todo!("Save the config to the config file.");
 }
 
 async fn save_rules(
@@ -24,7 +26,7 @@ async fn save_rules(
     Json(rules): Json<Vec<ExprRule>>,
 ) {
     let mut server_config = server.write().await;
-    println!("Saved rules: {:?}", rules);
+    debug!("Saved rules: {:?}", rules);
     if let Some(old_ruleset) = &server_config.rule_set {
         let new_ruleset = nt_ruleset::expr_rule::compile_expr_rules(
             rules,
@@ -43,4 +45,6 @@ async fn save_rules(
         );
         server_config.rule_set = Some(Arc::new(ruleset));
     }
+
+    todo!("Save the rules to the ruleset file.");
 }
