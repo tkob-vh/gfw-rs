@@ -3,24 +3,28 @@ use std::{sync::Arc, time::Duration};
 use clap::Parser;
 use cmd::config::load_config_from_file;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use nt_engine::Engine;
 use nt_ruleset::expr_rule::read_expr_rules_from_file;
 
 #[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
 struct Cli {
-    #[clap(short)]
+    #[clap(short, long)]
     config_file: String,
-    #[clap(short)]
+    #[clap(short, long)]
     ruleset_file: String,
-    #[clap(short)]
+    #[clap(short, long)]
     pcap_file: Option<String>,
+    #[clap(short, long, default_value_t=tracing::Level::INFO)]
+    log_level: tracing::Level,
 }
 
 #[tokio::main]
 async fn main() {
     // Setup analyzers
+    debug!("Setting up the analyzers");
     let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
         Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
         Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
@@ -28,13 +32,15 @@ async fn main() {
         Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
     ];
 
-    // Setup modifiers
+    debug!("Setting up the modifiers");
     let modifiers: Vec<Arc<dyn nt_modifier::Modifier>> =
         vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
 
-    // Setup logger
+    let cli = Cli::parse();
+
+    debug!("Setting up the tracer");
     tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(cli.log_level)
         .with_target(false)
         .with_thread_ids(true)
         .with_file(true)
@@ -42,27 +48,24 @@ async fn main() {
         .with_ansi(true)
         .init();
 
-    // Parse CLI
-    let cli = Cli::parse();
-
-    // Load config file
+    debug!("Loading config from {}...", &cli.config_file);
     let config = load_config_from_file(&cli.config_file)
         .await
         .map_err(|e| format!("failed to parse config file: {}", e))
         .unwrap();
 
-    // Load ruleset file
+    debug!("Loading the ruleset from {}...", &cli.ruleset_file);
     let raw_rs = read_expr_rules_from_file(&cli.ruleset_file)
         .await
         .map_err(|e| format!("failed to parse ruleset file: {}", e))
         .unwrap();
-    info!("{:?}", config);
-    info!("{:?}", raw_rs);
+    debug!("{:?}", config);
+    debug!("{:?}", raw_rs);
 
-    // Setup IO
+    debug!("Setting up the io...");
     let io_impl: Arc<dyn nt_io::PacketIO> = if cli.pcap_file.is_some() {
         let pcap_file = cli.pcap_file.unwrap();
-        info!("Replaying from pcap file {:?}", &pcap_file);
+        debug!("Replaying from pcap file {:?}", &pcap_file);
         Arc::new(
             nt_io::pcap::PcapPacketIO::new(nt_io::pcap::PcapPacketIOConfig {
                 pcap_file,
@@ -71,7 +74,7 @@ async fn main() {
             .unwrap(),
         )
     } else {
-        info!("Setup IO for nfqueue...");
+        debug!("Setup IO for nfqueue...");
         Arc::new(
             nt_io::nfqueue::NFQueuePacketIO::new(nt_io::nfqueue::NFQueuePacketIOConfig {
                 queue_size: config.io.queue_size,
@@ -82,11 +85,10 @@ async fn main() {
         )
     };
 
-    // Setup ruleset
+    debug!("Setting up the ruleset engine");
     let engine = Arc::new(rhai::Engine::new());
     let rs = nt_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, engine);
 
-    // Setup engine
     let engine_config = nt_engine::Config {
         workers: config.workers.count,
         worker_queue_size: config.workers.queue_size,
@@ -101,18 +103,18 @@ async fn main() {
         nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine"),
     ));
 
-    // Setup signal handling
+    debug!("Setting up the ctrl_c handler");
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
 
-    // Handle Ctrl+C for graceful shutdown
     let shutdown_tx_clone = shutdown_tx.clone();
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.unwrap();
-        info!("Shutting down gracefully...");
+        info!("Shutting down...");
         shutdown_tx_clone.send(()).await.unwrap();
     });
 
     // Handle SIGHUP for config reload
+    debug!("Setting up the SIGHUB handler for config reloading...");
     let ruleset_file = cli.ruleset_file.clone();
     let engine_clone = engine.clone();
     tokio::spawn(async move {
@@ -142,9 +144,9 @@ async fn main() {
     info!("Engine started");
 
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move { engine.lock().await.run(shutdown_rx).await });
+    tokio::spawn(async move { engine.lock().await.run(shutdown_rx).await });
 
     // Cleanup and shutdown
-    drop(engine_handle);
+    //drop(engine_handle);
     info!("Engine stopped");
 }
