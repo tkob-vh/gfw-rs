@@ -130,8 +130,8 @@ impl Worker {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    #[tracing::instrument(level = "debug")]
     pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        debug!("Worker started: id = {}", self.id);
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
         loop {

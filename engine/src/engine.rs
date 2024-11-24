@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
 use tokio::{
-    runtime::Runtime,
+    runtime::Handle,
     sync::mpsc::{self, Receiver},
 };
 use tracing::error;
@@ -27,7 +27,7 @@ pub struct Engine {
     /// The senders which send tasks to the workers.
     worker_senders: Vec<mpsc::Sender<WorkerPacket>>,
 
-    runtime: Runtime,
+    runtime: Handle,
 }
 
 impl Engine {
@@ -47,11 +47,6 @@ impl Engine {
         } else {
             num_cpus::get()
         };
-
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
 
         // Construct the workers according to the config.
         let mut workers: Vec<Worker> = Vec::with_capacity(worker_count);
@@ -75,7 +70,7 @@ impl Engine {
             io: config.io,
             workers,
             worker_senders,
-            runtime,
+            runtime: Handle::current(),
         })
     }
 }
@@ -127,7 +122,7 @@ impl crate::Engine for Engine {
 
         let worker_senders = self.worker_senders.clone();
         let io = self.io.clone();
-        let runtime_handle = self.runtime.handle().clone();
+        let runtime_handle = self.runtime.clone();
 
         // Create packet handler closure
         let packet_handler = {
