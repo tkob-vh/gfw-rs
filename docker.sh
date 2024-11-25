@@ -38,7 +38,7 @@ if [ "$ACTION" == "build" ]; then
 
   red_echo "Running $CONTAINER_RUNTIME container..."
   if $CONTAINER_RUNTIME run -d -p 3000:3000 \
-    --cap-add=NET_ADMIN \
+    --cap-add=NET_ADMIN,NET_RAW \
     --volume $(pwd):/app \
     --name $CONTAINER_NAME $IMAGE_NAME; then
     red_echo "$CONTAINER_RUNTIME container started successfully."
