@@ -2,6 +2,8 @@
 //! It includes the `PcapPacketIO` struct which implements the `PacketIO` trait for handling
 //! packet input/output operations using pcap files.
 //!
+//! In pcap mode, none of the actions in the rules have any effect. This mode is mainly for debugging.
+//!
 //! For info about pcap file format, refer to:
 //! <https://www.ietf.org/archive/id/draft-gharris-opsawg-pcap-01.html>
 //! <https://wiki.wireshark.org/Development/LibpcapFileFormat>

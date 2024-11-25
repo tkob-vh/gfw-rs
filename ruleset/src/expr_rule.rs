@@ -40,6 +40,7 @@ pub async fn read_expr_rules_from_file(
     Ok(expr_rules)
 }
 
+/// The internal, compiled representation of an expression rule.
 #[derive(Debug)]
 pub struct CompiledExprRule {
     pub name: String,
