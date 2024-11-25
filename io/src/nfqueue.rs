@@ -513,6 +513,7 @@ impl PacketIO for NFQueuePacketIO {
                     if !ok {
                         debug!("Setting verdict to {:?}", &verdict);
                         msg.set_verdict(verdict);
+                        let _ = queue.lock().await.verdict(msg);
                         continue;
                     }
 
