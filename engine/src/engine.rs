@@ -109,7 +109,7 @@ impl crate::Engine for Engine {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
 
-        // Start workers.
+        debug!("Start workers.");
         for mut worker in std::mem::take(&mut self.workers) {
             let err_tx = err_tx.clone();
             self.runtime.spawn(async move {
@@ -123,7 +123,7 @@ impl crate::Engine for Engine {
         let io = self.io.clone();
         let runtime_handle = self.runtime.clone();
 
-        // Create packet handler closure
+        debug!("Create packet handler");
         let packet_handler = {
             move |packet: Box<dyn nt_io::Packet>, err: Option<Box<dyn Error + Send + Sync>>| {
                 let worker_senders = worker_senders.clone();
@@ -145,7 +145,10 @@ impl crate::Engine for Engine {
 
         // Wait for either error or shutdown signal (similar to Go's select)
         tokio::select! {
-            Some(err) = err_rx.recv() => Err(err),
+            Some(err) = err_rx.recv() => {
+                info!("Encountered error: {}", &err);
+                Err(err)
+            }
             _ = shutdown_rx.recv() => {
                 info!("Received ctrl_c signal");
                 Ok(())
@@ -171,6 +174,7 @@ impl Engine {
         worker_senders: &[mpsc::Sender<WorkerPacket>],
         io: Arc<dyn nt_io::PacketIO>,
     ) -> bool {
+        debug!("Dispatching the packet to workers");
         let data = packet.data();
         if data.is_empty() {
             return true;
