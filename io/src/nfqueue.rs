@@ -371,7 +371,6 @@ impl NFQueuePacketIO {
         // copy_mode and flags not set currently. Maybe will incurred some errors.
         // read_buffer and write_buffer is not set too.
 
-        println!("AAAAA");
         Some(Self {
             queue: Arc::new(Mutex::new(queue)),
             local: config.local,
@@ -458,6 +457,7 @@ impl NFQueuePacketIO {
         payload: &[u8],
         ct: Option<&Conntrack>,
     ) -> (bool, nfq::Verdict) {
+        debug!("Check the sanity of the attributes.");
         // 20 is the minimum possible size of an IP packet
         if payload.len() < 20 {
             return (false, nfq::Verdict::Drop);
@@ -477,46 +477,57 @@ impl NFQueuePacketIO {
 #[async_trait::async_trait]
 impl PacketIO for NFQueuePacketIO {
     async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // Check if the rules have been set.
-        let mut rule_set = self.rule_set.lock().await;
-        if !*rule_set {
-            let _ = self.setup_nft(false).await;
-            *rule_set = true;
+        {
+            debug!("Check if the rules have been set.");
+            let mut rule_set = self.rule_set.lock().await;
+            if !*rule_set {
+                let _ = self.setup_nft(false).await;
+                *rule_set = true;
+            }
         }
 
         let queue = self.queue.clone();
         let local = self.local;
 
-        // Attatch a callback to a netfilter queue.
+        // Attach a callback to a netfilter queue.
         // If the buffer is full, do not receive the ENOBUFS error (just ignore it),
-        // which is the default behavier for nfq::Queue.
+        // which is the default behavior for nfq::Queue.
         tokio::spawn(async move {
-            let mut q = queue.lock().await;
-            while let Ok(mut msg) = q.recv() {
-                // Get the attributes of the message.
-                //let packet_id = msg.get_packet_id();
-                let payload = msg.get_payload();
-                let ct = msg.get_conntrack();
-
-                // Check the sanity of the attributes.
-                let (ok, verdict) =
-                    NFQueuePacketIO::packet_attribute_sanity_check(local, payload, ct);
-
-                if !ok {
-                    msg.set_verdict(verdict);
-                    continue;
-                }
-
-                let packet = NFQueuePacket {
-                    //id: packet_id,
-                    stream_id: ct.map(|c| c.get_id()).unwrap_or(0) as i32,
-                    timestamp: msg.get_timestamp().unwrap_or_else(SystemTime::now),
-                    data: payload.to_vec(),
-                    msg,
+            loop {
+                let msg = {
+                    let mut q = queue.lock().await;
+                    q.recv()
                 };
 
-                if !callback(Box::new(packet), None) {
-                    break;
+                if let Ok(mut msg) = msg {
+                    debug!("Received a packet from nfqueue");
+                    // Get the attributes of the message.
+                    //let packet_id = msg.get_packet_id();
+                    let payload = msg.get_payload();
+                    let ct = msg.get_conntrack();
+
+                    // Check the sanity of the attributes.
+                    let (ok, verdict) =
+                        NFQueuePacketIO::packet_attribute_sanity_check(local, payload, ct);
+
+                    debug!("Check results: ok = {:?}, verdict = {:?}", ok, &verdict);
+
+                    if !ok {
+                        msg.set_verdict(verdict);
+                        continue;
+                    }
+
+                    let packet = NFQueuePacket {
+                        //id: packet_id,
+                        stream_id: ct.map(|c| c.get_id()).unwrap_or(0) as i32,
+                        timestamp: msg.get_timestamp().unwrap_or_else(SystemTime::now),
+                        data: payload.to_vec(),
+                        msg,
+                    };
+
+                    if !callback(Box::new(packet), None) {
+                        break;
+                    }
                 }
             }
         });
