@@ -37,9 +37,11 @@ pub struct CliConfigIO {
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub snd_buf: i32,
     /// Enables or disables local mode.
+    /// Set to false if you want to run OpenGFW on FORWARD chain (e.g. on a router)
     #[serde(default)]
     pub local: bool,
     /// Enables or disables the RST (Reset) functionality.
+    /// Set to true if you want to send RST for blocked TCP connections, local=false only
     #[serde(default)]
     pub rst: bool,
 }
@@ -48,6 +50,7 @@ pub struct CliConfigIO {
 #[derive(Deserialize, Debug, Default)]
 pub struct CliConfigReplay {
     /// Specifies if real-time replay mode is enabled.
+    /// Set to true if you want to replay the packets in the pcap file in "real time" (instead of as fast as possible)
     #[serde(default)]
     pub realtime: bool,
 }
@@ -56,6 +59,7 @@ pub struct CliConfigReplay {
 #[derive(Deserialize, Debug)]
 pub struct CliConfigWorkers {
     /// Number of worker threads.
+    /// Recommended to be no more than the number of CPU cores
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub count: usize,
     /// Size of the queue for each worker.
@@ -68,6 +72,7 @@ pub struct CliConfigWorkers {
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_max_buffered_pages_per_conn: u32,
     /// TCP timeout duration, the unit is 's'.
+    /// How long a connection is considered dead when no data is being transferred.
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub tcp_timeout: u64,
     /// Maximum number of UDP streams.
