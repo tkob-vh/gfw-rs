@@ -37,7 +37,7 @@ pub struct CliConfigIO {
     #[serde(default, deserialize_with = "deserialize_number_from_string")]
     pub snd_buf: i32,
     /// Enables or disables local mode.
-    /// Set to false if you want to run OpenGFW on FORWARD chain (e.g. on a router)
+    /// Set to false if you want to run gfw-rs on FORWARD chain (e.g. on a router)
     #[serde(default)]
     pub local: bool,
     /// Enables or disables the RST (Reset) functionality.

@@ -33,7 +33,7 @@ const NFQUEUE_CONN_MARK_ACCEPT: u32 = 1001;
 const NFQUEUE_CONN_MARK_DROP: u32 = 1002;
 
 const NFT_FAMILY: &str = "inet";
-const NFT_TABLE: &str = "opengfw";
+const NFT_TABLE: &str = "gfw_rs";
 
 /// A table in nftables is a namespace that contains a collection of chains, rules, sets, and other objects.
 struct NftTableSpec {
@@ -388,7 +388,7 @@ impl NFQueuePacketIO {
     /// * `remove`: Whether to remove rules or add rules.
     async fn setup_nft(&self, remove: bool) -> Result<(), Box<dyn std::error::Error>> {
         if remove {
-            // `nft delete table inet opengfw`
+            // `nft delete table inet gfw_rs`
             let output = Command::new("nft")
                 .args(["delete", "table", NFT_FAMILY, NFT_TABLE])
                 .output()?;
@@ -662,7 +662,7 @@ impl Packet for NFQueuePacket {
 //        tracing_subscriber::fmt::init();
 //        let rules = generate_nft_rules(true, false).unwrap();
 //        assert_eq!(rules.family, "inet");
-//        assert_eq!(rules.table, "opengfw");
+//        assert_eq!(rules.table, "gfw_rs");
 //        assert_eq!(rules.chains.len(), 2);
 //        assert_eq!(rules.chains[0].chain, "INPUT");
 //        assert_eq!(rules.chains[1].chain, "OUTPUT");
@@ -672,7 +672,7 @@ impl Packet for NFQueuePacket {
 //    fn test_generate_nft_rules_non_local() {
 //        let rules = generate_nft_rules(false, false).unwrap();
 //        assert_eq!(rules.family, "inet");
-//        assert_eq!(rules.table, "opengfw");
+//        assert_eq!(rules.table, "gfw_rs");
 //        assert_eq!(rules.chains.len(), 1);
 //        assert_eq!(rules.chains[0].chain, "FORWARD");
 //    }

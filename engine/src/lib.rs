@@ -1,4 +1,4 @@
-//! This crate provides the main engine for OpenGFW, including modules for TCP, UDP, utilities, and workers.
+//! This crate provides the main engine for gfw-rs, including modules for TCP, UDP, utilities, and workers.
 
 pub mod engine;
 pub mod tcp;
@@ -15,7 +15,7 @@ use tokio::sync::mpsc::Receiver;
 use nt_io::PacketIO;
 use nt_ruleset::Ruleset;
 
-/// Engine is the main engine for OpenGFW.
+/// Engine is the main engine for gfw-rs.
 #[async_trait::async_trait]
 pub trait Engine {
     /// UpdateRuleset updates the ruleset.
