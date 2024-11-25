@@ -146,9 +146,9 @@ async fn main() {
     info!("Engine started");
 
     // Run the engine until shutdown signal
-    tokio::spawn(async move { engine.lock().await.run(shutdown_rx).await });
+    let engine_handle = tokio::spawn(async move { engine.lock().await.run(shutdown_rx).await });
 
     // Cleanup and shutdown
-    //drop(engine_handle);
+    let _ = engine_handle.await.unwrap();
     info!("Engine stopped");
 }
