@@ -478,7 +478,6 @@ impl NFQueuePacketIO {
 impl PacketIO for NFQueuePacketIO {
     async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
         {
-            debug!("Check if the rules have been set.");
             let mut rule_set = self.rule_set.lock().await;
             if !*rule_set {
                 let _ = self.setup_nft(false).await;
@@ -500,7 +499,6 @@ impl PacketIO for NFQueuePacketIO {
                 };
 
                 if let Ok(mut msg) = msg {
-                    debug!("Received a packet from nfqueue");
                     // Get the attributes of the message.
                     //let packet_id = msg.get_packet_id();
                     let payload = msg.get_payload();
@@ -513,6 +511,7 @@ impl PacketIO for NFQueuePacketIO {
                     debug!("Check results: ok = {:?}, verdict = {:?}", ok, &verdict);
 
                     if !ok {
+                        debug!("Setting verdict to {:?}", &verdict);
                         msg.set_verdict(verdict);
                         continue;
                     }

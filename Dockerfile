@@ -1,7 +1,7 @@
 FROM rust:latest
 
 RUN apt-get update && \
-    apt-get install -y libpcap-dev nftables curl iputils-ping
+    apt-get install -y libpcap-dev nftables curl iputils-ping dnsutils
 
 WORKDIR /app
 
