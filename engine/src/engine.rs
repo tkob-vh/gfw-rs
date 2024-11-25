@@ -10,7 +10,7 @@ use tokio::{
     runtime::Handle,
     sync::mpsc::{self, Receiver},
 };
-use tracing::error;
+use tracing::{debug, error, info};
 
 use crate::{
     worker::{Worker, WorkerConfig, WorkerPacket},
@@ -47,6 +47,7 @@ impl Engine {
         } else {
             num_cpus::get()
         };
+        debug!("Setting the number of workers to {}", worker_count);
 
         // Construct the workers according to the config.
         let mut workers: Vec<Worker> = Vec::with_capacity(worker_count);
@@ -106,8 +107,6 @@ impl crate::Engine for Engine {
         &mut self,
         mut shutdown_rx: Receiver<()>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // Create contexts similar to Go's context cancellation
-        // shutdown logic is implemented in cmd/main.rs using ctrl_c.
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
 
         // Start workers.
@@ -147,7 +146,10 @@ impl crate::Engine for Engine {
         // Wait for either error or shutdown signal (similar to Go's select)
         tokio::select! {
             Some(err) = err_rx.recv() => Err(err),
-            _ = shutdown_rx.recv() => Ok(()),
+            _ = shutdown_rx.recv() => {
+                info!("Received ctrl_c signal");
+                Ok(())
+            }
         }
     }
 }
@@ -174,10 +176,10 @@ impl Engine {
             return true;
         }
 
-        // Check IP version (same logic as Go version)
         let version = (data[0] >> 4) & 0xF;
         let packet_data = match version {
             4 => {
+                debug!("Ipv4 packet");
                 if let Some(ip_packet) = Ipv4Packet::new(data) {
                     ip_packet.payload().to_vec()
                 } else {
@@ -185,6 +187,7 @@ impl Engine {
                 }
             }
             6 => {
+                debug!("Ipv6 packet");
                 if let Some(ip_packet) = Ipv6Packet::new(data) {
                     ip_packet.payload().to_vec()
                 } else {
@@ -192,7 +195,7 @@ impl Engine {
                 }
             }
             _ => {
-                // Unsupported network layer - accept stream
+                debug!("Unsupported network layer - accept stream");
                 // TODO: Check the Vec::new().
                 if let Err(e) =
                     io.set_verdict(&mut packet, nt_io::Verdict::AcceptStream, Vec::new())

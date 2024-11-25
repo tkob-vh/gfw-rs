@@ -257,6 +257,7 @@ impl Worker {
             }
         }
 
+        debug!("Returning default verdict Accept");
         (nt_io::Verdict::Accept, None)
     }
 
@@ -279,6 +280,8 @@ impl Worker {
         dst_ip: IpAddr,
         tcp_packet: &'a mut MutableTcpPacket<'a>,
     ) -> nt_io::Verdict {
+        debug!("Handling tcp packet");
+
         let mut tcp_context = TCPContext {
             packet: tcp_packet.payload().to_owned(),
             verdict: TCPVerdict::Accept,
@@ -324,6 +327,8 @@ impl Worker {
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
     ) -> (nt_io::Verdict, Option<Vec<u8>>) {
+        debug!("Handling udp packet");
+
         let mut udp_context = UDPContext {
             verdict: UDPVerdict::Accept,
             packet: BytesMut::new(),
@@ -332,15 +337,6 @@ impl Worker {
         self.udp_stream_manager
             .match_with_context(stream_id, src_ip, dst_ip, udp_packet, &mut udp_context)
             .await
-
-        //(
-        //    udp_context.verdict.into(),
-        //    if udp_context.packet.is_empty() {
-        //        None
-        //    } else {
-        //        Some(udp_context.packet.to_vec())
-        //    },
-        //)
     }
 }
 

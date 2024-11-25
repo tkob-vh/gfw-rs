@@ -21,7 +21,7 @@ use std::{any::Any, process::Command, sync::Arc, time::SystemTime};
 use nfq::{Conntrack, Message, Queue};
 use socket2::{Domain, Socket, Type};
 use tokio::{net::TcpStream, sync::Mutex};
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{Packet, PacketCallback, PacketIO, Verdict};
 
@@ -536,6 +536,7 @@ impl PacketIO for NFQueuePacketIO {
             .downcast_mut::<NFQueuePacket>()
             .expect("Invalid NFQueuePacket");
 
+        debug!("Setting the verdict to {:?}", &verdict);
         match verdict {
             Verdict::Accept => nfq_packet.msg.set_verdict(nfq::Verdict::Accept),
             Verdict::AcceptModify => {
