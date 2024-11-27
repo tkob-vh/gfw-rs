@@ -345,8 +345,14 @@ impl UDPStream for OpenVPNUDPStream {
 
             if self.resp_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx.pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
+                prop_map.insert(
+                    "rx.pkt_cnt".to_string(),
+                    Arc::new(self.rx_pkt_cnt.to_string()),
+                );
+                prop_map.insert(
+                    "tx_pkt_cnt".to_string(),
+                    Arc::new(self.tx_pkt_cnt.to_string()),
+                );
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
                     map: prop_map,
@@ -362,8 +368,14 @@ impl UDPStream for OpenVPNUDPStream {
 
             if self.req_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
+                prop_map.insert(
+                    "rx_pkt_cnt".to_string(),
+                    Arc::new(self.rx_pkt_cnt.to_string()),
+                );
+                prop_map.insert(
+                    "tx_pkt_cnt".to_string(),
+                    Arc::new(self.tx_pkt_cnt.to_string()),
+                );
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
@@ -625,8 +637,14 @@ impl TCPStream for OpenVPNTCPStream {
 
             if self.resp_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
+                prop_map.insert(
+                    "rx_pkt_cnt".to_string(),
+                    Arc::new(self.rx_pkt_cnt.to_string()),
+                );
+                prop_map.insert(
+                    "tx_pkt_cnt".to_string(),
+                    Arc::new(self.tx_pkt_cnt.to_string()),
+                );
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
@@ -642,8 +660,14 @@ impl TCPStream for OpenVPNTCPStream {
 
             if self.req_updated {
                 let mut prop_map = PropMap::new();
-                prop_map.insert("rx_pkt_cnt".to_string(), Arc::new(self.rx_pkt_cnt));
-                prop_map.insert("tx_pkt_cnt".to_string(), Arc::new(self.tx_pkt_cnt));
+                prop_map.insert(
+                    "rx_pkt_cnt".to_string(),
+                    Arc::new(self.rx_pkt_cnt.to_string()),
+                );
+                prop_map.insert(
+                    "tx_pkt_cnt".to_string(),
+                    Arc::new(self.tx_pkt_cnt.to_string()),
+                );
 
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Merge,

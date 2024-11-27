@@ -377,21 +377,39 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
     // Extract the properties from the dns packet and store them in the hashmap.
 
     // Process the flags:
-    prop_map.insert("id".to_string(), Arc::new(dns_packet.get_id()));
-    prop_map.insert("qr".to_string(), Arc::new(dns_packet.get_is_response()));
-    prop_map.insert("opcode".to_string(), Arc::new(dns_packet.get_opcode()));
-    prop_map.insert("aa".to_string(), Arc::new(dns_packet.get_is_authoriative()));
-    prop_map.insert("tc".to_string(), Arc::new(dns_packet.get_is_truncated()));
+    prop_map.insert("id".to_string(), Arc::new(dns_packet.get_id().to_string()));
+    prop_map.insert(
+        "qr".to_string(),
+        Arc::new(dns_packet.get_is_response().to_string()),
+    );
+    prop_map.insert(
+        "opcode".to_string(),
+        Arc::new(format!("{:?}", dns_packet.get_opcode())),
+    );
+    prop_map.insert(
+        "aa".to_string(),
+        Arc::new(dns_packet.get_is_authoriative().to_string()),
+    );
+    prop_map.insert(
+        "tc".to_string(),
+        Arc::new(dns_packet.get_is_truncated().to_string()),
+    );
     prop_map.insert(
         "rd".to_string(),
-        Arc::new(dns_packet.get_is_recursion_desirable()),
+        Arc::new(dns_packet.get_is_recursion_desirable().to_string()),
     );
     prop_map.insert(
         "ra".to_string(),
-        Arc::new(dns_packet.get_is_recursion_available()),
+        Arc::new(dns_packet.get_is_recursion_available().to_string()),
     );
-    prop_map.insert("z".to_string(), Arc::new(dns_packet.get_zero_reserved()));
-    prop_map.insert("rcode".to_string(), Arc::new(dns_packet.get_rcode()));
+    prop_map.insert(
+        "z".to_string(),
+        Arc::new(dns_packet.get_zero_reserved().to_string()),
+    );
+    prop_map.insert(
+        "rcode".to_string(),
+        Arc::new(format!("{:?}", dns_packet.get_rcode())),
+    );
 
     // Process the queries.
     if dns_packet.get_query_count() > 0 {
@@ -402,8 +420,12 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
                 "name".to_string(),
                 Arc::new(String::from_utf8(q.get_qname())),
             );
-            prop_map_questions[i].insert("type".to_string(), Arc::new(q.get_qtype()));
-            prop_map_questions[i].insert("class".to_string(), Arc::new(q.get_qclass()));
+            prop_map_questions[i]
+                .insert("type".to_string(), Arc::new(format!("{:?}", q.get_qtype())));
+            prop_map_questions[i].insert(
+                "class".to_string(),
+                Arc::new(format!("{:?}", q.get_qclass())),
+            );
         }
 
         prop_map.insert("questions".to_string(), Arc::new(prop_map_questions));
@@ -458,31 +480,49 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     let mut prop_map = PropMap::new();
 
     prop_map.insert("name".to_string(), Arc::new(rr.get_name_tag().to_string()));
-    prop_map.insert("type".to_string(), Arc::new(rr.get_rtype()));
-    prop_map.insert("class".to_string(), Arc::new(rr.get_rclass()));
-    prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl()));
+    prop_map.insert(
+        "type".to_string(),
+        Arc::new(format!("{:?}", rr.get_rtype())),
+    );
+    prop_map.insert(
+        "class".to_string(),
+        Arc::new(format!("{:?}", rr.get_rclass())),
+    );
+    prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl().to_string()));
 
     match rr.get_rtype() {
         dns::DnsTypes::A => {
-            prop_map.insert("a".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert("a".to_string(), Arc::new(String::from_utf8(rr.get_data())));
         }
         dns::DnsTypes::AAAA => {
-            prop_map.insert("aaaa".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert(
+                "aaaa".to_string(),
+                Arc::new(String::from_utf8(rr.get_data())),
+            );
         }
         dns::DnsTypes::NS => {
-            prop_map.insert("ns".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert("ns".to_string(), Arc::new(String::from_utf8(rr.get_data())));
         }
         dns::DnsTypes::CNAME => {
-            prop_map.insert("cname".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert(
+                "cname".to_string(),
+                Arc::new(String::from_utf8(rr.get_data())),
+            );
         }
         dns::DnsTypes::PTR => {
-            prop_map.insert("ptr".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert(
+                "ptr".to_string(),
+                Arc::new(String::from_utf8(rr.get_data())),
+            );
         }
         dns::DnsTypes::TXT => {
-            prop_map.insert("txt".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert(
+                "txt".to_string(),
+                Arc::new(String::from_utf8(rr.get_data())),
+            );
         }
         dns::DnsTypes::MX => {
-            prop_map.insert("mx".to_string(), Arc::new(rr.get_data()));
+            prop_map.insert("mx".to_string(), Arc::new(String::from_utf8(rr.get_data())));
         }
         _ => {}
     }

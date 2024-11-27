@@ -187,7 +187,7 @@ impl WireGuardUDPStream {
                 // String to Message type.
                 prop_map.insert(
                     WIREGUARD_PROPKEY_MESSAGE_TYPE.to_string(),
-                    Arc::new(message_type),
+                    Arc::new(message_type.to_string()),
                 );
                 // Message type to prop_map.
                 prop_map.insert(prop_key, Arc::new(prop_value));
@@ -222,7 +222,7 @@ impl WireGuardUDPStream {
         let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
-        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx));
+        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx.to_string()));
 
         // Store the index to the ring buffer.
         self.put_sender_idx(rev, sender_idx);
@@ -255,7 +255,7 @@ impl WireGuardUDPStream {
         let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
-        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx));
+        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx.to_string()));
 
         // Store the index to the ring buffer.
         self.put_sender_idx(rev, sender_idx);
@@ -264,12 +264,15 @@ impl WireGuardUDPStream {
         let receiver_idx = LittleEndian::read_u32(data.get(8..12).unwrap());
 
         // String to sender_idx.
-        prop_map.insert("receiver_index".to_string(), Arc::new(receiver_idx));
+        prop_map.insert(
+            "receiver_index".to_string(),
+            Arc::new(receiver_idx.to_string()),
+        );
 
         // The matching pair with the receiver_idx.
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx)),
+            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         Some(prop_map)
@@ -298,17 +301,20 @@ impl WireGuardUDPStream {
         let mut prop_map = PropMap::new();
 
         let receiver_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
-        prop_map.insert("receiver_index".to_string(), Arc::new(receiver_idx));
+        prop_map.insert(
+            "receiver_index".to_string(),
+            Arc::new(receiver_idx.to_string()),
+        );
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx)),
+            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         // The counter value is a nonce for the ChaCha20Poly1305 AEAD
         // It also functions to avoid replay attacks.
         prop_map.insert(
             "counter".to_string(),
-            Arc::new(LittleEndian::read_u64(data.get(8..16).unwrap())),
+            Arc::new(LittleEndian::read_u64(data.get(8..16).unwrap()).to_string()),
         );
 
         Some(prop_map)
@@ -336,11 +342,14 @@ impl WireGuardUDPStream {
 
         let receiver_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
-        prop_map.insert("receiver_index".to_string(), Arc::new(receiver_idx));
+        prop_map.insert(
+            "receiver_index".to_string(),
+            Arc::new(receiver_idx.to_string()),
+        );
 
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx)),
+            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         Some(prop_map)
