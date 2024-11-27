@@ -365,6 +365,12 @@ impl NFQueuePacketIO {
             return None;
         }
 
+        // Receive the conntrack info.
+        if let Err(e) = queue.set_recv_conntrack(NFQUEUE_NUM, true) {
+            error!("Failed to receive conntrack info: {}", e);
+            return None;
+        }
+
         // Set the recv function not blocking.
         queue.set_nonblocking(true);
 
