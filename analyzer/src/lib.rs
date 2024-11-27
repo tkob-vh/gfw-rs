@@ -156,6 +156,36 @@ pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Sen
 /// analyzer -> PropMap
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
+/// Function to extract (String, String) pairs from CombinedPropMap
+pub fn extract_pairs_from_combinedpropmap(combined_map: CombinedPropMap) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+
+    for (analyzer_key, prop_map) in combined_map {
+        flatten_prop_map(&analyzer_key, &prop_map, &mut result);
+    }
+
+    result
+}
+
+fn flatten_prop_map(prefix: &str, prop_map: &PropMap, result: &mut Vec<(String, String)>) {
+    for (key, value) in prop_map {
+        let new_key = format!("{}_{}", prefix, key);
+
+        if let Some(string_value) = value.downcast_ref::<String>() {
+            result.push((new_key, string_value.clone()));
+        } else if let Some(nested_map) = value.downcast_ref::<PropMap>() {
+            flatten_prop_map(&new_key, nested_map, result);
+        } else if let Some(nested_map) =
+            value.downcast_ref::<std::collections::HashMap<String, String>>()
+        {
+            for (nested_key, nested_value) in nested_map {
+                let nested_new_key = format!("{}_{}", new_key, nested_key);
+                result.push((nested_new_key, nested_value.clone()));
+            }
+        }
+    }
+}
+
 /// The `PropUpdateType` enum defines the types of property updates that can occur.
 #[derive(PartialEq, Debug)]
 pub enum PropUpdateType {
