@@ -49,7 +49,7 @@ pub struct TCPContext {
 /// TCPStreamFactory is responsible for creating new TCP streams and updating the ruleset.
 #[derive(Debug)]
 pub struct TCPStreamFactory {
-    worker_id: i32,
+    worker_id: u32,
 
     /// https://en.wikipedia.org/wiki/Snowflake_ID
     pub node: SnowflakeIdGenerator,
@@ -67,7 +67,7 @@ impl TCPStreamFactory {
     /// * `node` - The Snowflake ID generator.
     /// * `ruleset` - The ruleset for the TCP stream entries.
     pub fn new(
-        worker_id: i32,
+        worker_id: u32,
         node: SnowflakeIdGenerator,
         ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
     ) -> Self {
@@ -177,7 +177,7 @@ impl TCPStreamFactory {
 #[derive(Debug)]
 pub struct TCPStreamManager {
     factory: TCPStreamFactory,
-    streams: LruCache<i32, TCPStreamValue>,
+    streams: LruCache<u32, TCPStreamValue>,
     /// The following two variables is not used for now.
     max_buffered_pages_total: u32,
     max_buffered_pages_per_conn: u32,
@@ -215,7 +215,7 @@ impl TCPStreamManager {
     /// * `udp_context` - The UDP context.
     pub async fn match_with_context<'a>(
         &mut self,
-        stream_id: i32,
+        stream_id: u32,
         src_ip: IpAddr,
         dst_ip: IpAddr,
         tcp_packet: &'a mut MutableTcpPacket<'a>,

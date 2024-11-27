@@ -46,7 +46,7 @@ pub struct UDPContext {
 /// Factory for creating UDP streams.
 #[derive(Debug)]
 pub struct UDPStreamFactory {
-    worker_id: i32,
+    worker_id: u32,
 
     /// https://en.wikipedia.org/wiki/Snowflake_ID
     node: snowflake::SnowflakeIdGenerator,
@@ -64,7 +64,7 @@ impl UDPStreamFactory {
     /// * `node` - The Snowflake ID generator.
     /// * `ruleset` - The ruleset for the UDP stream entries.
     pub fn new(
-        worker_id: i32,
+        worker_id: u32,
         node: snowflake::SnowflakeIdGenerator,
         ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
     ) -> Self {
@@ -171,7 +171,7 @@ impl UDPStreamFactory {
 #[derive(Debug)]
 pub struct UDPStreamManager {
     factory: UDPStreamFactory,
-    streams: LruCache<i32, UDPStreamValue>,
+    streams: LruCache<u32, UDPStreamValue>,
 }
 
 impl UDPStreamManager {
@@ -205,7 +205,7 @@ impl UDPStreamManager {
     /// * `udp_context` - The UDP context.
     pub async fn match_with_context<'a>(
         &mut self,
-        stream_id: i32,
+        stream_id: u32,
         src_ip: IpAddr,
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
