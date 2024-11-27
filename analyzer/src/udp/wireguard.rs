@@ -415,13 +415,13 @@ impl UDPStream for WireGuardUDPStream {
 
         // Extract the message type from prop_map.
         let message_type = prop_map[WIREGUARD_PROPKEY_MESSAGE_TYPE]
-            .downcast_ref::<u8>()
-            .expect("Expected a u8 value")
+            .downcast_ref::<String>()
+            .expect("Expected a String")
             .to_owned();
 
         let mut prop_update_type = PropUpdateType::Merge;
 
-        if message_type == WIREGUARD_TYPE_HANDSHAKE_INITIATION {
+        if message_type == WIREGUARD_TYPE_HANDSHAKE_INITIATION.to_string() {
             prop_update_type = PropUpdateType::Replace;
         }
 
@@ -506,9 +506,9 @@ mod tests {
             *prop_map
                 .get("sender_index")
                 .unwrap()
-                .downcast_ref::<u32>()
+                .downcast_ref::<String>()
                 .unwrap(),
-            0xc1039c02
+            0xc1039c02u32.to_string()
         );
     }
 
@@ -532,17 +532,17 @@ mod tests {
             *prop_map
                 .get("sender_index")
                 .unwrap()
-                .downcast_ref::<u32>()
+                .downcast_ref::<String>()
                 .unwrap(),
-            0xdce3fa01
+            0xdce3fa01u32.to_string()
         );
         assert_eq!(
             *prop_map
                 .get("receiver_index")
                 .unwrap()
-                .downcast_ref::<u32>()
+                .downcast_ref::<String>()
                 .unwrap(),
-            0xc1039c02
+            0xc1039c02u32.to_string()
         );
     }
 
@@ -565,9 +565,9 @@ mod tests {
             *prop_map
                 .get("receiver_index")
                 .unwrap()
-                .downcast_ref::<u32>()
+                .downcast_ref::<String>()
                 .unwrap(),
-            0xab7df406
+            0xab7df406u32.to_string()
         );
     }
 
