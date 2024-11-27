@@ -1,5 +1,6 @@
 //! This module contains the definition of an expression rule and the logic to read and compile them.
 use crate::Action;
+use nt_analyzer::extract_pairs_from_combinedpropmap;
 use nt_analyzer::Analyzer;
 use nt_modifier::{Instance, Modifier};
 use serde::Deserialize;
@@ -86,12 +87,12 @@ impl crate::Ruleset for ExprRuleset {
 }
 
 fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
-    scope.push("src_ip".to_owned(), info.src_ip);
-    scope.push("protocol".to_owned(), info.protocol.to_string());
-    scope.push("src_port".to_owned(), info.src_port);
-    scope.push("dst_ip".to_owned(), info.dst_ip);
-    scope.push("dst_port".to_owned(), info.dst_port);
-    for (key, value) in info.props.clone() {
+    scope.push("src_ip", info.src_ip);
+    scope.push("protocol", info.protocol.to_string());
+    scope.push("src_port", info.src_port);
+    scope.push("dst_ip", info.dst_ip);
+    scope.push("dst_port", info.dst_port);
+    for (key, value) in extract_pairs_from_combinedpropmap(info.props.clone()) {
         scope.push(key, value);
     }
 }
