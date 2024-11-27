@@ -503,6 +503,10 @@ impl PacketIO for NFQueuePacketIO {
                     //let packet_id = msg.get_packet_id();
                     let payload = msg.get_payload();
                     let ct = msg.get_conntrack();
+                    debug!(
+                        "nfqueue message info: ct = {:?}, payload = {:?}",
+                        &ct, payload
+                    );
 
                     // Check the sanity of the attributes.
                     let (ok, verdict) =
@@ -511,7 +515,6 @@ impl PacketIO for NFQueuePacketIO {
                     debug!("Check results: ok = {:?}, verdict = {:?}", ok, &verdict);
 
                     if !ok {
-                        debug!("Setting verdict to {:?}", &verdict);
                         msg.set_verdict(verdict);
                         let _ = queue.lock().await.verdict(msg);
                         continue;
