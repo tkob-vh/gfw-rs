@@ -54,7 +54,7 @@ impl Engine {
         let mut worker_senders = Vec::with_capacity(worker_count);
         for i in 0..worker_count {
             let (worker, sender) = Worker::new(WorkerConfig {
-                id: i as i32,
+                id: i as u32,
                 chan_size: config.worker_queue_size,
                 ruleset: config.ruleset.clone(),
                 tcp_max_buffered_pages_total: config.worker_tcp_max_buffered_pages_total,
@@ -121,7 +121,6 @@ impl crate::Engine for Engine {
 
         let worker_senders = self.worker_senders.clone();
         let io = self.io.clone();
-        let runtime_handle = self.runtime.clone();
 
         debug!("Create packet handler");
         let packet_handler = {
@@ -130,13 +129,16 @@ impl crate::Engine for Engine {
                 let err_tx = err_tx.clone();
                 let io = io.clone();
 
-                runtime_handle.block_on(async move {
+                let fut = async move {
                     if let Some(e) = err {
                         let _ = err_tx.send(e).await;
                         return false;
                     }
                     Self::dispatch(packet, &worker_senders, io).await
-                })
+                };
+
+                tokio::spawn(fut);
+                true
             }
         };
 
@@ -212,7 +214,7 @@ impl Engine {
 
         // Load balance by stream ID (same as Go version)
         let stream_id = packet.stream_id();
-        let index = (stream_id % worker_senders.len() as i32) as usize;
+        let index = (stream_id % worker_senders.len() as u32) as usize;
 
         let worker_packet = WorkerPacket {
             stream_id,

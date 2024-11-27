@@ -37,7 +37,7 @@ type SetVerdict = Box<
 >;
 
 pub struct WorkerPacket {
-    pub stream_id: i32,
+    pub stream_id: u32,
 
     pub packet: Vec<u8>,
 
@@ -47,7 +47,7 @@ pub struct WorkerPacket {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Worker {
-    id: i32,
+    id: u32,
 
     packet_rx: mpsc::Receiver<WorkerPacket>,
 
@@ -81,7 +81,8 @@ impl Worker {
         // Twelve more bits represent a per-machine sequence number (aka step), to allow creation of multiple
         // snowflakes in the same millisecond. The final number is generally serialized in decimal.
         let discord_epoch = std::time::UNIX_EPOCH + Duration::from_millis(1420070400000);
-        let node = SnowflakeIdGenerator::with_epoch(config.id, config.id, discord_epoch);
+        let node =
+            SnowflakeIdGenerator::with_epoch(config.id as i32, config.id as i32, discord_epoch);
 
         let tcp_stream_factory =
             TCPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
@@ -187,7 +188,7 @@ impl Worker {
     /// A tuple containing the verdict and an optional modified packet.
     async fn handle_packet(
         &mut self,
-        stream_id: i32,
+        stream_id: u32,
         packet_data: &mut [u8],
     ) -> (nt_io::Verdict, Option<Vec<u8>>) {
         // Try IPv4 first
@@ -275,7 +276,7 @@ impl Worker {
     /// The verdict for the packet.
     async fn handle_tcp<'a>(
         &mut self,
-        stream_id: i32,
+        stream_id: u32,
         src_ip: IpAddr,
         dst_ip: IpAddr,
         tcp_packet: &'a mut MutableTcpPacket<'a>,
@@ -322,7 +323,7 @@ impl Worker {
     /// A tuple containing the verdict and an optional modified packet.
     async fn handle_udp<'a>(
         &mut self,
-        stream_id: i32,
+        stream_id: u32,
         src_ip: IpAddr,
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
@@ -342,7 +343,7 @@ impl Worker {
 
 /// Configuration for creating a `Worker` instance.
 pub struct WorkerConfig {
-    pub id: i32,
+    pub id: u32,
     pub chan_size: u32,
 
     pub ruleset: Arc<dyn nt_ruleset::Ruleset>,
