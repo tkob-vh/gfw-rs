@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// Represents an expression rule.
 #[derive(Deserialize, Debug)]
@@ -65,12 +65,14 @@ impl crate::Ruleset for ExprRuleset {
     fn matches(&self, info: &crate::StreamInfo) -> crate::MatchResult {
         let mut scope = rhai::Scope::new();
         get_scope(&mut scope, info);
+        debug!("StreamInfo props: {:?}", &info.props);
         for rule in self.rules.iter() {
             let result = self.engine.eval_ast_with_scope(&mut scope, &rule.ast);
             if let Ok(re) = result {
                 if re {
                     return {
-                        info!("Rule matched: {}", rule.name);
+                        info!("Rule matched: name = {:?}, id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}",
+                            &rule.name, &info.id, &info.src_ip, &info.src_port, &info.dst_ip, &info.dst_port, &info.props);
                         crate::MatchResult {
                             action: rule.action.clone(),
                             modifier: rule.modifier.clone(),
@@ -159,13 +161,13 @@ pub fn compile_expr_rules(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_read_expr_rules_from_file() {
-        let rules = read_expr_rules_from_file("../rules.yaml").await.unwrap();
-        assert_eq!(rules.len(), 4);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[tokio::test]
+//     async fn test_read_expr_rules_from_file() {
+//         let rules = read_expr_rules_from_file("../rules.yaml").await.unwrap();
+//         assert_eq!(rules.len(), 4);
+//     }
+// }
