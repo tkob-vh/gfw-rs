@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -137,8 +137,8 @@ impl Worker {
 
         loop {
             tokio::select! {
-                Some(mut packet) = self.packet_rx.recv() => {
-                    let (verdict, modified) = self.handle_packet(packet.stream_id, packet.packet.as_mut()).await;
+                Some(packet) = self.packet_rx.recv() => {
+                    let (verdict, modified) = self.handle_packet(packet.stream_id, packet.packet).await;
                     if (packet.set_verdict)(verdict, modified).is_err() {
                         error!("Failed to set the verdict");
                     }
@@ -189,15 +189,19 @@ impl Worker {
     async fn handle_packet(
         &mut self,
         stream_id: u32,
-        packet_data: &mut [u8],
+        mut packet_data: Vec<u8>,
     ) -> (nt_io::Verdict, Option<Vec<u8>>) {
-        // Try IPv4 first
-        if let Some(mut ipv4) = MutableIpv4Packet::new(packet_data) {
+        if let Some(mut ipv4) = MutableIpv4Packet::new(&mut packet_data) {
+            debug!("Handling ipv4 packet");
             let src_ip = ipv4.get_source();
+            debug!("src_ip: {}", &src_ip);
             let dst_ip = ipv4.get_destination();
+            debug!("dst_ip: {}", &dst_ip);
             match ipv4.get_next_level_protocol() {
                 IpNextHeaderProtocols::Tcp => {
+                    debug!("Transport layer: TCP");
                     if let Some(mut tcp_packet) = MutableTcpPacket::new(ipv4.payload_mut()) {
+                        debug!("Successfully setting up tcp packet");
                         return (
                             self.handle_tcp(
                                 stream_id,
@@ -211,7 +215,9 @@ impl Worker {
                     }
                 }
                 IpNextHeaderProtocols::Udp => {
+                    debug!("Transport layer: UDP");
                     if let Some(mut udp_packet) = MutableUdpPacket::new(ipv4.payload_mut()) {
+                        debug!("Successfully setting up udp packet");
                         return self
                             .handle_udp(
                                 stream_id,
@@ -222,9 +228,12 @@ impl Worker {
                             .await;
                     }
                 }
-                _ => {}
+                other => {
+                    warn!("Transport layer is neither TCP nor UDP: {}", other);
+                }
             }
-        } else if let Some(mut ipv6) = MutableIpv6Packet::new(packet_data) {
+        } else if let Some(mut ipv6) = MutableIpv6Packet::new(&mut packet_data) {
+            debug!("Handling ipv6 packet");
             let src_ip = ipv6.get_source();
             let dst_ip = ipv6.get_destination();
             match ipv6.get_next_header() {
@@ -301,12 +310,12 @@ impl Worker {
     ///
     /// * `timeout` - The duration after which TCP streams should be flushed.
     async fn flush_tcp(&mut self, timeout: Duration) {
-        let (flushed, closed) = self.tcp_stream_manager.flush_close_older_than(timeout);
+        let (_flushed, _closed) = self.tcp_stream_manager.flush_close_older_than(timeout);
 
-        debug!(
-            "[TCP flush]: worker_id: {:?}, flushed: {:?}, closed: {:?}",
-            self.id, flushed, closed
-        );
+        // debug!(
+        //     "[TCP flush]: worker_id: {:?}, flushed: {:?}, closed: {:?}",
+        //     self.id, _flushed, _closed
+        // );
     }
 
     /// Handles a UDP packet.
