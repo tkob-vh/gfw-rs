@@ -528,7 +528,7 @@ impl PacketIO for NFQueuePacketIO {
 
                     let packet = NFQueuePacket {
                         //id: packet_id,
-                        stream_id: ct.map(|c| c.get_id()).unwrap_or(0) as i32,
+                        stream_id: ct.map(|c| c.get_id()).unwrap_or(0),
                         timestamp: msg.get_timestamp().unwrap_or_else(SystemTime::now),
                         data: payload.to_vec(),
                         msg,
@@ -544,16 +544,15 @@ impl PacketIO for NFQueuePacketIO {
         Ok(())
     }
 
-    fn set_verdict(
+    async fn set_verdict(
         &self,
-        packet: &mut Box<dyn Packet>,
+        packet: Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Downcast the Packet trait to NFQueuePacket.
-        let nfq_packet = packet
-            .as_any_mut()
-            .downcast_mut::<NFQueuePacket>()
+        let mut nfq_packet = packet
+            .downcast::<NFQueuePacket>()
             .expect("Invalid NFQueuePacket");
 
         debug!("Setting the verdict to {:?}", &verdict);
@@ -572,6 +571,10 @@ impl PacketIO for NFQueuePacketIO {
                 nfq_packet.msg.set_verdict(nfq::Verdict::Drop);
                 nfq_packet.msg.set_nfmark(NFQUEUE_CONN_MARK_DROP);
             }
+        }
+
+        if let Err(e) = self.queue.lock().await.verdict(nfq_packet.msg) {
+            error!("Failed to verdict the message: {}", e);
         }
 
         Ok(())
@@ -646,15 +649,15 @@ impl PacketIO for NFQueuePacketIO {
 }
 
 struct NFQueuePacket {
-    //id: i32,
-    stream_id: i32,
+    //id: u32,
+    stream_id: u32,
     timestamp: SystemTime,
     data: Vec<u8>,
     msg: Message,
 }
 
 impl Packet for NFQueuePacket {
-    fn stream_id(&self) -> i32 {
+    fn stream_id(&self) -> u32 {
         self.stream_id
     }
 
@@ -667,10 +670,6 @@ impl Packet for NFQueuePacket {
     }
 
     fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }

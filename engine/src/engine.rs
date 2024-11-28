@@ -172,7 +172,7 @@ impl Engine {
     ///
     /// * `bool` - Returns `true` if the packet was successfully dispatched, or `false` on failure.
     async fn dispatch(
-        mut packet: Box<dyn nt_io::Packet>,
+        packet: Box<dyn nt_io::Packet>,
         worker_senders: &[mpsc::Sender<WorkerPacket>],
         io: Arc<dyn nt_io::PacketIO>,
     ) -> bool {
@@ -203,8 +203,9 @@ impl Engine {
             _ => {
                 debug!("Unsupported network layer - accept stream");
                 // TODO: Check the Vec::new().
-                if let Err(e) =
-                    io.set_verdict(&mut packet, nt_io::Verdict::AcceptStream, Vec::new())
+                if let Err(e) = io
+                    .set_verdict(packet, nt_io::Verdict::AcceptStream, Vec::new())
+                    .await
                 {
                     error!("Failed to set verdict: {}", e);
                 }
@@ -222,7 +223,12 @@ impl Engine {
             set_verdict: Box::new(
                 move |verdict: nt_io::Verdict, modified_data: Option<Vec<u8>>| {
                     let io = io.clone();
-                    io.set_verdict(&mut packet, verdict, modified_data.unwrap_or_default())
+                    let fut = async move {
+                        io.set_verdict(packet, verdict, modified_data.unwrap_or_default())
+                            .await
+                    };
+                    tokio::spawn(fut);
+                    Ok(())
                 },
             ),
         };
