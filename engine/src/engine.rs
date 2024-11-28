@@ -185,17 +185,17 @@ impl Engine {
         let version = (data[0] >> 4) & 0xF;
         let packet_data = match version {
             4 => {
-                debug!("Ipv4 packet");
+                debug!("Dispatching Ipv4 packet");
                 if let Some(ip_packet) = Ipv4Packet::new(data) {
-                    ip_packet.payload().to_vec()
+                    ip_packet.packet().to_vec()
                 } else {
                     return true;
                 }
             }
             6 => {
-                debug!("Ipv6 packet");
+                debug!("Dispatching Ipv6 packet");
                 if let Some(ip_packet) = Ipv6Packet::new(data) {
-                    ip_packet.payload().to_vec()
+                    ip_packet.packet().to_vec()
                 } else {
                     return true;
                 }
