@@ -509,10 +509,10 @@ impl PacketIO for NFQueuePacketIO {
                     //let packet_id = msg.get_packet_id();
                     let payload = msg.get_payload();
                     let ct = msg.get_conntrack();
-                    debug!(
-                        "nfqueue message info: ct = {:?}, payload = {:?}",
-                        &ct, payload
-                    );
+                    // debug!(
+                    //     "nfqueue message info: ct = {:?}, payload = {:?}",
+                    //     &ct, payload
+                    // );
 
                     // Check the sanity of the attributes.
                     let (ok, verdict) =
@@ -529,7 +529,9 @@ impl PacketIO for NFQueuePacketIO {
                     let packet = NFQueuePacket {
                         //id: packet_id,
                         stream_id: ct.map(|c| c.get_id()).unwrap_or(0),
-                        timestamp: msg.get_timestamp().unwrap_or_else(SystemTime::now),
+                        timestamp: SystemTime::now(),
+                        // TODO: fix the panic caused by get_timestamp()
+                        // msg.get_timestamp().unwrap_or_else(SystemTime::now)
                         data: payload.to_vec(),
                         msg,
                     };
