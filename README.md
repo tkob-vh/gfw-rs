@@ -5,9 +5,10 @@ Rewrite [opengfw](https://github.com/apernet/OpenGFW) in Rust.
 > This project is still in very early stages of development. Use at your own risk.
 
 
-# Features
+## Features
 * Written in Rust, focusing on performance and safety.
 * Full IP/TCP reassembly, various protocol analyzers.
 * a Web-UI which facilitates configuration and monitering.
 
-
+## WIP
+See [this issue](https://github.com/tkob-vh/net-guardian/issues/22)
