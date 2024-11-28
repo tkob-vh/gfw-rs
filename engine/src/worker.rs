@@ -293,7 +293,7 @@ impl Worker {
         debug!("Handling tcp packet");
 
         let mut tcp_context = TCPContext {
-            packet: tcp_packet.payload().to_owned(),
+            packet: tcp_packet.packet().to_owned(),
             verdict: TCPVerdict::Accept,
         };
 

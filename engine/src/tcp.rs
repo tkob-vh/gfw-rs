@@ -225,12 +225,12 @@ impl TCPStreamManager {
         let src_port = tcp_packet.get_source();
         let dst_port = tcp_packet.get_destination();
 
-        // Get the stream according to the stream_id.
+        debug!("Get the stream according to the stream_id.");
         if let Some(value) = self.streams.get_mut(&stream_id) {
             let (matches, is_reverse) = value.matches(src_ip, dst_ip, src_port, dst_port);
 
             if !matches {
-                // Stream ID exists but different flow - create a new stream.
+                debug!("Stream ID exists but different flow - create a new stream.");
                 value.stream.close_active_entries();
                 let new_stream = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await;
                 if let Some(stream) = new_stream {
@@ -248,7 +248,7 @@ impl TCPStreamManager {
                 reverse = is_reverse;
             }
         } else {
-            // Stream ID not exists, create a new stream.
+            debug!("Stream ID not exists, create a new stream.");
             if let Some(stream) = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await {
                 let value = TCPStreamValue {
                     stream,
