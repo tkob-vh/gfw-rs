@@ -7,6 +7,8 @@ pub mod pcap;
 
 use std::error::Error;
 use std::{any::Any, time::SystemTime};
+
+use downcast_rs::{impl_downcast, DowncastSync};
 use tokio::net::TcpStream;
 
 /// Verdict represents the possible actions that can be taken on a packet.
@@ -25,9 +27,9 @@ pub enum Verdict {
 }
 
 /// Packet represents an IP packet.
-pub trait Packet: Any + Send + Sync {
+pub trait Packet: DowncastSync + Send + Sync {
     /// The ID of the stream the packet belongs to.
-    fn stream_id(&self) -> i32;
+    fn stream_id(&self) -> u32;
 
     /// The time the packet was received.
     fn timestamp(&self) -> SystemTime;
@@ -36,8 +38,20 @@ pub trait Packet: Any + Send + Sync {
     fn data(&self) -> &[u8];
 
     fn as_any(&self) -> &dyn Any;
+}
 
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+impl_downcast!(sync Packet);
+
+impl std::fmt::Debug for dyn Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Packet: stream_id = {:?}, timestamp = {:?}, data = {:?},",
+            self.stream_id(),
+            self.timestamp(),
+            self.data()
+        )
+    }
 }
 
 /// The function to be called for each received packet.
@@ -47,7 +61,7 @@ pub type PacketCallback =
 
 /// Manage the packet io.
 #[async_trait::async_trait]
-pub trait PacketIO: Send + Sync {
+pub trait PacketIO: DowncastSync + Send + Sync {
     /// Registers a callback function to be called for each received packet.
     ///
     /// # Arguments
@@ -70,9 +84,9 @@ pub trait PacketIO: Send + Sync {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    fn set_verdict(
+    async fn set_verdict(
         &self,
-        packet: &mut Box<dyn Packet>,
+        packet: Box<dyn Packet>,
         verdict: Verdict,
         data: Vec<u8>,
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
@@ -111,3 +125,5 @@ pub trait PacketIO: Send + Sync {
         cancel_func: Box<dyn Fn() + Send + Sync>,
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
+
+impl_downcast!(sync PacketIO);

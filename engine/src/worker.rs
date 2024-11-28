@@ -31,7 +31,7 @@ const DEFAULT_UDP_MAX_STREAMS: u32 = 4096;
 const TCP_FLUSH_INTERVAL: Duration = Duration::from_secs(60);
 
 type SetVerdict = Box<
-    dyn FnMut(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
+    dyn FnOnce(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
         + Send
         + Sync,
 >;
