@@ -627,10 +627,47 @@ fn analyzers_to_udp_analyzers(
 ) -> Vec<Arc<dyn nt_analyzer::UDPAnalyzer>> {
     analyzers
         .iter()
-        .filter_map(|a| {
-            a.as_any()
-                .downcast_ref::<Arc<dyn nt_analyzer::UDPAnalyzer>>()
-                .cloned()
+        .filter_map(|analyzer| {
+            if analyzer.as_any().is::<nt_analyzer::udp::dns::DNSAnalyzer>() {
+                Some(Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new())
+                    as Arc<dyn nt_analyzer::UDPAnalyzer>)
+            } else if analyzer
+                .as_any()
+                .is::<nt_analyzer::udp::openvpn::OpenVPNAnalyzer>()
+            {
+                Some(Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new())
+                    as Arc<dyn nt_analyzer::UDPAnalyzer>)
+            } else if analyzer
+                .as_any()
+                .is::<nt_analyzer::udp::wireguard::WireGuardAnalyzer>()
+            {
+                Some(
+                    Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new())
+                        as Arc<dyn nt_analyzer::UDPAnalyzer>,
+                )
+            } else {
+                None
+            }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tracing_subscriber;
+
+    #[test]
+    fn test_analyzer_to_udp_analyzers() {
+        let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
+            Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+        ];
+
+        let tcp_analyzers = analyzers_to_udp_analyzers(&analyzers);
+
+        assert_eq!(tcp_analyzers.len(), 3);
+    }
 }

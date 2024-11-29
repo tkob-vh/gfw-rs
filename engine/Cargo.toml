@@ -17,3 +17,6 @@ rhai.workspace = true
 rs-snowflake = "0.6.0"
 tokio.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+tracing-subscriber.workspace = true

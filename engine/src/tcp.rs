@@ -126,9 +126,9 @@ impl TCPStreamFactory {
 
         // Get the analyzers and convert them to tcp analyzers.
         let analyzers = rs.analyzers();
-        let tcp_analyzers = analyzer_to_tcp_analyzers(&analyzers);
+        let tcp_analyzers = analyzers_to_tcp_analyzers(&analyzers);
 
-        // Create tcp stream entries for each tcp analyzer
+        debug!("Create tcp stream entries for each tcp analyzer");
         let entries: Vec<TCPStreamEntry> = tcp_analyzers
             .iter()
             .map(|a| TCPStreamEntry {
@@ -619,15 +619,26 @@ struct TCPStreamEntry {
 /// # Returns
 ///
 /// A vector of Arc-wrapped TCPAnalyzer trait objects.
-fn analyzer_to_tcp_analyzers(
+fn analyzers_to_tcp_analyzers(
     analyzers: &[Arc<dyn nt_analyzer::Analyzer>],
 ) -> Vec<Arc<dyn nt_analyzer::TCPAnalyzer>> {
     analyzers
         .iter()
-        .filter_map(|a| {
-            a.as_any()
-                .downcast_ref::<Arc<dyn nt_analyzer::TCPAnalyzer>>()
-                .cloned()
+        .filter_map(|analyzer| {
+            // Downcast to specific types that implement TCPAnalyzer
+            if analyzer.as_any().is::<nt_analyzer::tcp::http::HTTPAnalyzer>() {
+                // Clone the original Arc and cast it
+                Some(Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            } 
+            // Add other TCP analyzers here with else if blocks
+            // else if analyzer.as_any().is::<nt_analyzer::tcp::tls::TLSAnalyzer>() {
+            //     Some(Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            // } else if analyzer.as_any().is::<nt_analyzer::tcp::ssh::SSHAnalyzer>() {
+            //     Some(Arc::new(nt_analyzer::tcp::ssh::SSHAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            // }
+            else {
+                None
+            }
         })
         .collect()
 }
@@ -647,5 +658,41 @@ fn action_to_tcp_verdict(action: &nt_ruleset::Action) -> TCPVerdict {
             TCPVerdict::AcceptStream
         }
         nt_ruleset::Action::Block | nt_ruleset::Action::Drop => TCPVerdict::DropStream,
+    } }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tracing_subscriber;
+
+
+
+    #[test]
+    fn test_analyzers_to_tcp_analyzers() {
+    tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_target(false)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(true)
+        .init();
+
+
+        let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
+            Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+            Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+        ];
+
+
+        let tcp_analyzers = analyzers_to_tcp_analyzers(&analyzers);
+
+        assert_eq!(tcp_analyzers.len(), 1);
+
     }
+
+
 }

@@ -21,7 +21,7 @@ use std::{any::Any, process::Command, sync::Arc, time::SystemTime};
 use nfq::{Conntrack, Message, Queue};
 use socket2::{Domain, Socket, Type};
 use tokio::{net::TcpStream, sync::Mutex};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use crate::{Packet, PacketCallback, PacketIO, Verdict};
 
@@ -518,9 +518,11 @@ impl PacketIO for NFQueuePacketIO {
                     let (ok, verdict) =
                         NFQueuePacketIO::packet_attribute_sanity_check(local, payload, ct);
 
-                    debug!("Check results: ok = {:?}, verdict = {:?}", ok, &verdict);
-
                     if !ok {
+                        warn!(
+                            "Sanity check not passed. Setting the verdict to {:?}",
+                            &verdict
+                        );
                         msg.set_verdict(verdict);
                         let _ = queue.lock().await.verdict(msg);
                         continue;
