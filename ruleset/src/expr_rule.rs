@@ -97,11 +97,11 @@ impl crate::Ruleset for ExprRuleset {
 }
 
 fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
-    scope.push("src_ip", info.src_ip);
+    scope.push("src_ip", info.src_ip.to_string());
     scope.push("protocol", info.protocol.to_string());
-    scope.push("src_port", info.src_port);
-    scope.push("dst_ip", info.dst_ip);
-    scope.push("dst_port", info.dst_port);
+    scope.push("src_port", info.src_port.to_string());
+    scope.push("dst_ip", info.dst_ip.to_string());
+    scope.push("dst_port", info.dst_port.to_string());
     for (key, value) in extract_pairs_from_combinedpropmap(info.props.clone()) {
         scope.push(key, value);
     }
