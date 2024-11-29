@@ -10,4 +10,6 @@ hex = "0.4.3"
 pnet.workspace = true
 ringbuf = "0.4.7"
 tracing.workspace = true
+
+[dev-dependencies]
 tracing-subscriber.workspace = true

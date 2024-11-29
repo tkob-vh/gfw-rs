@@ -12,3 +12,7 @@ Rewrite [opengfw](https://github.com/apernet/OpenGFW) in Rust.
 
 ## WIP
 See [this issue](https://github.com/tkob-vh/net-guardian/issues/22)
+
+##  Requriements
+* The kernel modules about `conntrack` should be loaded.
+* Need root permission to modify the nftables/iptables and `conntrack` system.

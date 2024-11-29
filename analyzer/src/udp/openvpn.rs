@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 
 use byteorder::{BigEndian, ByteOrder};
 use bytes::BytesMut;
+use tracing::debug;
 
 use crate::*;
 
@@ -88,6 +89,7 @@ impl TCPAnalyzer for OpenVPNAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_tcp(&self, info: TCPInfo) -> Box<dyn TCPStream> {
+        debug!("Creating a new openvpn tcp analyze");
         Box::new(OpenVPNTCPStream::new())
     }
 }
