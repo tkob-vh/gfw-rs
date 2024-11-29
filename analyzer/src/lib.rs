@@ -16,8 +16,8 @@ pub trait Analyzer: Any + Send + Sync + Debug {
     ///
     /// $str: the name returned
     fn name(&self) -> &str;
-    /// Get the byte limit for this analyzer.
 
+    /// Get the byte limit for this analyzer.
     /// For example, an analyzer can return 1000 to indicate that it only ever needs
     /// the first 1000 bytes of a stream to do its job. If the stream is still not
     /// done after 1000 bytes, the engine will stop feeding it data and close it.
