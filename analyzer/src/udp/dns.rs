@@ -18,7 +18,7 @@ use std::sync::{Arc, RwLock};
 
 use bytes::{Buf, BytesMut};
 use pnet::packet::dns;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::*;
 
@@ -75,6 +75,7 @@ impl TCPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_tcp(&self, info: TCPInfo) -> Box<dyn TCPStream> {
+        debug!("Creating a new dns tcp analyzer");
         Box::new(DNSTCPStream::new())
     }
 }

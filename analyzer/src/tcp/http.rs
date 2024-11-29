@@ -3,6 +3,7 @@
 use std::sync::{Arc, RwLock};
 
 use bytes::BytesMut;
+use tracing::debug;
 
 use crate::*;
 
@@ -40,6 +41,7 @@ impl Analyzer for HTTPAnalyzer {
 impl TCPAnalyzer for HTTPAnalyzer {
     #[allow(unused_variables)]
     fn new_tcp(&self, info: TCPInfo) -> Box<dyn TCPStream> {
+        debug!("Creating a new http analyzer");
         Box::new(HTTPStream::new())
     }
 }
@@ -194,6 +196,7 @@ impl TCPStream for HTTPStream {
         skip: usize,
         data: &[u8],
     ) -> (Option<PropUpdate>, bool) {
+        debug!("Analyzing tcp packet...");
         if skip != 0 {
             return (None, true);
         }
@@ -236,6 +239,8 @@ impl TCPStream for HTTPStream {
                 self.req_updated = false;
             }
         }
+
+        debug!("The properties: {:?}", &update);
 
         (update, cancelled || (self.req_done && self.resp_done))
     }
