@@ -16,7 +16,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -197,6 +197,8 @@ impl Worker {
             debug!("src_ip: {}", &src_ip);
             let dst_ip = ipv4.get_destination();
             debug!("dst_ip: {}", &dst_ip);
+            trace!("ipv4 packet data: {:02x?}", ipv4.packet());
+
             match ipv4.get_next_level_protocol() {
                 IpNextHeaderProtocols::Tcp => {
                     debug!("Transport layer: TCP");
