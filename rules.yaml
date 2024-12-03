@@ -1,4 +1,5 @@
 - name: block http get
   action: block
   analyzer: http
-  expr: dst_port == "80" || http_method == "GET"
+  expr: http_method == "GET"
+

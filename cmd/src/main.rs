@@ -24,7 +24,6 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     // Setup analyzers
-    debug!("Setting up the analyzers");
     let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
         Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
         Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
@@ -32,13 +31,11 @@ async fn main() {
         Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
     ];
 
-    debug!("Setting up the modifiers");
     let modifiers: Vec<Arc<dyn nt_modifier::Modifier>> =
         vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
 
     let cli = Cli::parse();
 
-    debug!("Setting up the tracer");
     tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(cli.log_level)
         .with_target(false)

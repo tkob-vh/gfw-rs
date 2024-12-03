@@ -79,9 +79,6 @@ impl crate::Ruleset for ExprRuleset {
                                 modifier: rule.modifier.clone(),
                             }
                         };
-                    } else {
-                        debug!("Rule not matched: name = {:?}, id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}",
-                        &rule.name, &info.id, &info.src_ip, &info.src_port, &info.dst_ip, &info.dst_port, &info.props);
                     }
                 }
                 Err(e) => {
@@ -89,6 +86,8 @@ impl crate::Ruleset for ExprRuleset {
                 }
             }
         }
+
+        warn!("Non of the rules were matched, returning default action 'Maybe'");
 
         crate::MatchResult {
             action: crate::Action::Maybe,

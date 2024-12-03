@@ -463,7 +463,7 @@ impl NFQueuePacketIO {
         payload: &[u8],
         ct: Option<&Conntrack>,
     ) -> (bool, nfq::Verdict) {
-        debug!("Check the sanity of the attributes.");
+        // debug!("Check the sanity of the attributes.");
         // 20 is the minimum possible size of an IP packet
         if payload.len() < 20 {
             return (false, nfq::Verdict::Drop);
