@@ -67,6 +67,7 @@ impl UDPAnalyzer for DNSAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_udp(&self, info: UDPInfo) -> Box<dyn UDPStream> {
+        debug!("Creating a new dns udp analyzer");
         Box::new(DNSUDPStream::new())
     }
 }
@@ -97,6 +98,7 @@ impl UDPStream for DNSUDPStream {
     /// The argument `rev` is not used here.
     #[allow(unused_variables)]
     fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<PropUpdate>, bool) {
+        debug!("Analyzing dns udp packets");
         // Parse the DNS message first.
         let prop_map = match parse_dns_message(&BytesMut::from(data)) {
             Some(map) => map,
@@ -287,11 +289,13 @@ impl TCPStream for DNSTCPStream {
         skip: usize,
         data: &[u8],
     ) -> (Option<PropUpdate>, bool) {
+        debug!("Analyzing dns tcp packets");
         if skip != 0 {
             return (None, true);
         }
 
         if data.is_empty() {
+            debug!("The data to be analyzed is empty, return (None, false).");
             return (None, false);
         }
 

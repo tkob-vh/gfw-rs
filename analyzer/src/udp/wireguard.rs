@@ -17,6 +17,7 @@ use ringbuf::{
     traits::{Consumer, Producer},
     HeapRb,
 };
+use tracing::debug;
 
 use crate::*;
 
@@ -95,6 +96,7 @@ impl UDPAnalyzer for WireGuardAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_udp(&self, info: crate::UDPInfo) -> Box<dyn UDPStream> {
+        debug!("Creating a new wireguard udp packet");
         Box::new(WireGuardUDPStream::new())
     }
 }
@@ -399,6 +401,7 @@ impl WireGuardUDPStream {
 
 impl UDPStream for WireGuardUDPStream {
     fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<crate::PropUpdate>, bool) {
+        debug!("Analyzing wireguard udp packets");
         let prop_map = match self.parse_wireguard_packet(rev, &BytesMut::from(data)) {
             Some(map) => map,
             None => {
