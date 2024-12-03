@@ -89,8 +89,9 @@ impl crate::Ruleset for ExprRuleset {
                 }
             }
         }
+
         crate::MatchResult {
-            action: crate::Action::Allow,
+            action: crate::Action::Maybe,
             modifier: None,
         }
     }
@@ -102,7 +103,7 @@ fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
     scope.push("src_port", info.src_port.to_string());
     scope.push("dst_ip", info.dst_ip.to_string());
     scope.push("dst_port", info.dst_port.to_string());
-    for (key, value) in extract_pairs_from_combinedpropmap(info.props.clone()) {
+    for (key, value) in extract_pairs_from_combinedpropmap(&info.props) {
         scope.push(key, value);
     }
 }
