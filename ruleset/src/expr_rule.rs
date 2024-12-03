@@ -8,8 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use tracing::error;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// Represents an expression rule.
 #[derive(Deserialize, Debug)]
@@ -81,8 +80,8 @@ impl crate::Ruleset for ExprRuleset {
                         };
                     }
                 }
-                Err(e) => {
-                    error!("Rule match error: {}; Rule: {:?}", e, rule.ast);
+                Err(_e) => {
+                    // error!("Rule match error: {}; Rule: {:?}", e, rule.ast);
                 }
             }
         }
