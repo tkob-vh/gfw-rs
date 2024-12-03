@@ -21,7 +21,7 @@ use std::{any::Any, process::Command, sync::Arc, time::SystemTime};
 use nfq::{Conntrack, Message, Queue};
 use socket2::{Domain, Socket, Type};
 use tokio::{net::TcpStream, sync::Mutex};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::{Packet, PacketCallback, PacketIO, Verdict};
 
@@ -509,10 +509,11 @@ impl PacketIO for NFQueuePacketIO {
                     //let packet_id = msg.get_packet_id();
                     let payload = msg.get_payload();
                     let ct = msg.get_conntrack();
-                    // debug!(
-                    //     "nfqueue message info: ct = {:?}, payload = {:?}",
-                    //     &ct, payload
-                    // );
+                    trace!(
+                        "nfqueue message info: ct = {:?}, payload = {:2x?}",
+                        &ct,
+                        payload
+                    );
 
                     // Check the sanity of the attributes.
                     let (ok, verdict) =
@@ -563,8 +564,9 @@ impl PacketIO for NFQueuePacketIO {
         match verdict {
             Verdict::Accept => nfq_packet.msg.set_verdict(nfq::Verdict::Accept),
             Verdict::AcceptModify => {
-                nfq_packet.msg.set_verdict(nfq::Verdict::Accept);
+                trace!("The modified data: {:2x?}", &data);
                 nfq_packet.msg.set_payload(data);
+                nfq_packet.msg.set_verdict(nfq::Verdict::Accept);
             }
             Verdict::AcceptStream => {
                 nfq_packet.msg.set_verdict(nfq::Verdict::Accept);
