@@ -220,7 +220,7 @@ impl Worker {
                     debug!("Transport layer: UDP");
                     if let Some(mut udp_packet) = MutableUdpPacket::new(ipv4.payload_mut()) {
                         debug!("Successfully setting up udp packet");
-                        return self
+                        let (verdict, udp_data) = self
                             .handle_udp(
                                 stream_id,
                                 IpAddr::V4(src_ip),
@@ -228,6 +228,14 @@ impl Worker {
                                 &mut udp_packet,
                             )
                             .await;
+                        if let Some(ip_payload) = udp_data {
+                            let mut ip_packet = ipv4.packet().to_owned();
+                            let mut modified = MutableIpv4Packet::new(&mut ip_packet).unwrap();
+                            modified.set_payload(&ip_payload);
+                            return (verdict, Some(modified.packet().to_owned()));
+                        } else {
+                            return (verdict, None);
+                        }
                     }
                 }
                 other => {
@@ -255,7 +263,7 @@ impl Worker {
                 }
                 IpNextHeaderProtocols::Udp => {
                     if let Some(mut udp_packet) = MutableUdpPacket::new(ipv6.payload_mut()) {
-                        return self
+                        let (verdict, udp_data) = self
                             .handle_udp(
                                 stream_id,
                                 IpAddr::V6(src_ip),
@@ -263,6 +271,15 @@ impl Worker {
                                 &mut udp_packet,
                             )
                             .await;
+
+                        if let Some(ip_payload) = udp_data {
+                            let mut ip_packet = ipv6.packet().to_owned();
+                            let mut modified = MutableIpv6Packet::new(&mut ip_packet).unwrap();
+                            modified.set_payload(&ip_payload);
+                            return (verdict, Some(modified.packet().to_owned()));
+                        } else {
+                            return (verdict, None);
+                        }
                     }
                 }
                 _ => {}

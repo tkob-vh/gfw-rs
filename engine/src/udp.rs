@@ -451,18 +451,20 @@ impl UDPStream {
                 nt_ruleset::Action::Modify => {
                     // Handle modification
                     if let Some(modifier) = result.modifier {
-                        match modifier
+                        if modifier
                             .as_any()
-                            .downcast_ref::<Arc<dyn UDPModifierInstance>>()
-                            .unwrap()
-                            .process(udp_packet.payload_mut())
+                            .is::<nt_modifier::udp::dns::DNSModifierInstance>()
                         {
-                            Some(modified) => {
-                                udp_context.packet = BytesMut::from(&modified[..]);
-                                udp_context.verdict = UDPVerdict::AcceptModify;
-                            }
-                            None => {
-                                error!(
+                            let modifier =
+                                Arc::new(nt_modifier::udp::dns::DNSModifierInstance::new())
+                                    as Arc<dyn UDPModifierInstance>;
+                            match modifier.process(udp_packet.payload_mut()) {
+                                Some(modified) => {
+                                    udp_context.packet = BytesMut::from(&modified[..]);
+                                    udp_context.verdict = UDPVerdict::AcceptModify;
+                                }
+                                None => {
+                                    error!(
                                     "[Modifer error]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
                                     self.info.id,
                                     self.info.src_ip,
@@ -470,7 +472,8 @@ impl UDPStream {
                                     self.info.dst_ip,
                                     self.info.dst_port
                                 );
-                                udp_context.verdict = UDPVerdict::Accept;
+                                    udp_context.verdict = UDPVerdict::Accept;
+                                }
                             }
                         }
                     }
