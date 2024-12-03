@@ -215,13 +215,13 @@ impl UDPStreamManager {
         let src_port = udp_packet.get_source();
         let dst_port = udp_packet.get_destination();
 
-        // Get the stream according to the stream_id.
+        debug!("Get the stream according to the stream_id.");
         if let Some(value) = self.streams.get_mut(&stream_id) {
             // Stream ID exists, but is it really the same stream?
             let (matches, is_reverse) = value.matches(src_ip, dst_ip, src_port, dst_port);
 
             if !matches {
-                // Stream ID exists but different flow - create a new stream.
+                debug!("Stream ID exists but different flow - create a new stream.");
                 value.stream.close();
                 let new_stream = self.factory.new_stream(src_ip, dst_ip, udp_packet).await;
                 if let Some(stream) = new_stream {
@@ -238,7 +238,7 @@ impl UDPStreamManager {
                 reverse = is_reverse;
             }
         } else {
-            // Stream ID not exists, create a new stream.
+            debug!("Stream ID not exists, create a new stream.");
             if let Some(stream) = self.factory.new_stream(src_ip, dst_ip, udp_packet).await {
                 let value = UDPStreamValue {
                     stream,
@@ -387,6 +387,7 @@ impl UDPStream {
         if !self.active_entries.is_empty() || self.virgin {
             true
         } else {
+            debug!("set the context verdict to the last verdict of the stream.");
             udp_context.verdict = self.last_verdict.clone();
             false
         }
@@ -425,6 +426,7 @@ impl UDPStream {
 
         // Second pass: remove entries in reverse order
         for &i in indices_to_remove.iter().rev() {
+            debug!("Remove active entry {}", i);
             let entry = self.active_entries.remove(i);
             self.done_entries.push(entry);
         }
@@ -655,7 +657,6 @@ fn analyzers_to_udp_analyzers(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracing_subscriber;
 
     #[test]
     fn test_analyzer_to_udp_analyzers() {

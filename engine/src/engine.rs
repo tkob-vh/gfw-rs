@@ -176,7 +176,6 @@ impl Engine {
         worker_senders: &[mpsc::Sender<WorkerPacket>],
         io: Arc<dyn nt_io::PacketIO>,
     ) -> bool {
-        debug!("Dispatching the packet to workers");
         let data = packet.data();
         if data.is_empty() {
             return true;

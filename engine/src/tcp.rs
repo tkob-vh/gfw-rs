@@ -128,7 +128,7 @@ impl TCPStreamFactory {
         let analyzers = rs.analyzers();
         let tcp_analyzers = analyzers_to_tcp_analyzers(&analyzers);
 
-        debug!("Create tcp stream entries for each tcp analyzer");
+        // debug!("Create tcp stream entries for each tcp analyzer");
         let entries: Vec<TCPStreamEntry> = tcp_analyzers
             .iter()
             .map(|a| TCPStreamEntry {
@@ -408,11 +408,11 @@ impl TCPStream {
         // even if there are no active entries, as the ruleset may have built-in
         // properties that need to be matched.
         if !self.active_entries.is_empty() || self.virgin {
-            // If there are active entries or this is the first packet, accept the packet.
+            // debug!("If there are active entries or this is the first packet, accept the packet.");
             true
         } else {
             // If there are no active entries and this is not the first packet,
-            // set the context verdict to the last verdict of the stream.
+            debug!("set the context verdict to the last verdict of the stream.");
             context.verdict = self.last_verdict.clone();
             false
         }
@@ -455,22 +455,22 @@ impl TCPStream {
 
         // Second pass: remove entries in reverse order
         for &i in indices_to_remove.iter().rev() {
+            debug!("Remove active entry {}", i);
             let entry = self.active_entries.remove(i);
             self.done_entries.push(entry);
         }
 
-        // If any properties were updated or this is the first packet, update the verdict
+        // debug!("If any properties were updated or this is the first packet, update the verdict");
         if updated || self.virgin {
             self.virgin = false;
 
             debug!(
-                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, close = {}",
                 self.info.id,
                 self.info.src_ip,
                 self.info.src_port,
                 self.info.dst_ip,
                 self.info.dst_port,
-                self.info.props, 
                 false,
             );
 
@@ -501,16 +501,16 @@ impl TCPStream {
         if self.active_entries.is_empty() && matches!(context.verdict, TCPVerdict::Accept) {
             self.last_verdict = TCPVerdict::AcceptStream;
             context.verdict = TCPVerdict::AcceptStream;
-            
-            debug!("[TCP stream no match]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
+
+            debug!(
+                "[TCP stream no match]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, action = {:?}",
                 self.info.id,
                 self.info.src_ip,
                 self.info.src_port,
                 self.info.dst_ip,
                 self.info.dst_port,
                 nt_ruleset::Action::Allow,
-                );
-
+            );
         }
     }
 
@@ -579,16 +579,14 @@ impl TCPStream {
 
         if updated {
             debug!(
-                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}, close = {}",
+                "[TCP stream property update]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, close = {}",
                 self.info.id,
                 self.info.src_ip,
                 self.info.src_port,
                 self.info.dst_ip,
                 self.info.dst_port,
-                self.info.props, 
                 true,
             );
-
         }
 
         self.done_entries.append(&mut self.active_entries);
@@ -626,10 +624,14 @@ fn analyzers_to_tcp_analyzers(
         .iter()
         .filter_map(|analyzer| {
             // Downcast to specific types that implement TCPAnalyzer
-            if analyzer.as_any().is::<nt_analyzer::tcp::http::HTTPAnalyzer>() {
+            if analyzer
+                .as_any()
+                .is::<nt_analyzer::tcp::http::HTTPAnalyzer>()
+            {
                 // Clone the original Arc and cast it
-                Some(Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
-            } 
+                Some(Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new())
+                    as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            }
             // Add other TCP analyzers here with else if blocks
             // else if analyzer.as_any().is::<nt_analyzer::tcp::tls::TLSAnalyzer>() {
             //     Some(Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
@@ -658,27 +660,24 @@ fn action_to_tcp_verdict(action: &nt_ruleset::Action) -> TCPVerdict {
             TCPVerdict::AcceptStream
         }
         nt_ruleset::Action::Block | nt_ruleset::Action::Drop => TCPVerdict::DropStream,
-    } }
-
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tracing_subscriber;
 
-
-
     #[test]
     fn test_analyzers_to_tcp_analyzers() {
-    tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_target(false)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .with_ansi(true)
-        .init();
-
+        tracing_subscriber::FmtSubscriber::builder()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_target(false)
+            .with_thread_ids(true)
+            .with_file(true)
+            .with_line_number(true)
+            .with_ansi(true)
+            .init();
 
         let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
             Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
@@ -687,12 +686,8 @@ mod tests {
             Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
         ];
 
-
         let tcp_analyzers = analyzers_to_tcp_analyzers(&analyzers);
 
         assert_eq!(tcp_analyzers.len(), 1);
-
     }
-
-
 }
