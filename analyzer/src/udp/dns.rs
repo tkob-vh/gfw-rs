@@ -17,7 +17,7 @@
 use std::sync::{Arc, RwLock};
 
 use bytes::{Buf, BytesMut};
-use pnet::packet::dns;
+use pnet::packet::dns::{self, DnsQuery};
 use tracing::{debug, error};
 
 use crate::*;
@@ -355,6 +355,30 @@ impl TCPStream for DNSTCPStream {
     }
 }
 
+/// Get the parsed qname
+///
+/// Copied from pnet.
+pub fn get_qname_parsed(raw: Vec<u8>) -> String {
+    let mut qname = String::new();
+    let mut offset = 0;
+    loop {
+        let label_len = raw[offset] as usize;
+        if label_len == 0 {
+            break;
+        }
+        if !qname.is_empty() {
+            qname.push('.');
+        }
+        qname.push_str(
+            std::str::from_utf8(&raw[offset + 1..offset + 1 + label_len])
+                .ok()
+                .unwrap(),
+        );
+        offset += label_len + 1;
+    }
+    qname
+}
+
 /// Parse the DNS message and store them in the PropMap HashTable.
 ///
 /// [The format of DNS
@@ -423,14 +447,12 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
         for (i, q) in dns_packet.get_queries_iter().enumerate() {
             prop_map_questions[i].insert(
                 "name".to_string(),
-                Arc::new(String::from_utf8(q.get_qname())),
+                Arc::new(get_qname_parsed(q.get_qname())),
             );
             prop_map_questions[i]
-                .insert("type".to_string(), Arc::new(format!("{:?}", q.get_qtype())));
-            prop_map_questions[i].insert(
-                "class".to_string(),
-                Arc::new(format!("{:?}", q.get_qclass())),
-            );
+                .insert("type".to_string(), Arc::new(format!("{}", q.get_qtype())));
+            prop_map_questions[i]
+                .insert("class".to_string(), Arc::new(format!("{}", q.get_qclass())));
         }
 
         prop_map.insert("questions".to_string(), Arc::new(prop_map_questions));
@@ -485,13 +507,10 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     let mut prop_map = PropMap::new();
 
     prop_map.insert("name".to_string(), Arc::new(rr.get_name_tag().to_string()));
-    prop_map.insert(
-        "type".to_string(),
-        Arc::new(format!("{:?}", rr.get_rtype())),
-    );
+    prop_map.insert("type".to_string(), Arc::new(format!("{}", rr.get_rtype())));
     prop_map.insert(
         "class".to_string(),
-        Arc::new(format!("{:?}", rr.get_rclass())),
+        Arc::new(format!("{}", rr.get_rclass())),
     );
     prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl().to_string()));
 
