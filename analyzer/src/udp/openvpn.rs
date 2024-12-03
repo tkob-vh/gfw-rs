@@ -81,6 +81,7 @@ impl UDPAnalyzer for OpenVPNAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_udp(&self, info: UDPInfo) -> Box<dyn UDPStream> {
+        debug!("Creating a new openvpn udp analyzer");
         Box::new(OpenVPNUDPStream::new())
     }
 }
@@ -89,7 +90,7 @@ impl TCPAnalyzer for OpenVPNAnalyzer {
     /// The argument `info` is not used here.
     #[allow(unused_variables)]
     fn new_tcp(&self, info: TCPInfo) -> Box<dyn TCPStream> {
-        debug!("Creating a new openvpn tcp analyze");
+        debug!("Creating a new openvpn tcp analyzer");
         Box::new(OpenVPNTCPStream::new())
     }
 }
@@ -332,7 +333,9 @@ impl OpenVPNStream for OpenVPNUDPStream {
 
 impl UDPStream for OpenVPNUDPStream {
     fn feed(&mut self, rev: bool, data: &[u8]) -> (Option<PropUpdate>, bool) {
+        debug!("Analyzing openvpn udp packets");
         if data.is_empty() {
+            debug!("The data to be analyzed is empty, return (None, false).");
             return (None, false);
         }
 
@@ -620,11 +623,13 @@ impl TCPStream for OpenVPNTCPStream {
         skip: usize,
         data: &[u8],
     ) -> (Option<PropUpdate>, bool) {
+        debug!("Analyzing openvpn tcp packets");
         if skip != 0 {
             return (None, false);
         }
 
         if data.is_empty() {
+            debug!("The data to be analyzed is empty, return (None, false).");
             return (None, false);
         }
 

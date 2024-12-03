@@ -196,12 +196,13 @@ impl TCPStream for HTTPStream {
         skip: usize,
         data: &[u8],
     ) -> (Option<PropUpdate>, bool) {
-        debug!("Analyzing tcp packet...");
+        debug!("Analyzing http tcp packet...");
         if skip != 0 {
             return (None, true);
         }
 
         if data.is_empty() {
+            debug!("The data to be analyzed is empty, return (None, false).");
             return (None, false);
         }
 
@@ -239,8 +240,6 @@ impl TCPStream for HTTPStream {
                 self.req_updated = false;
             }
         }
-
-        debug!("The properties: {:?}", &update);
 
         (update, cancelled || (self.req_done && self.resp_done))
     }

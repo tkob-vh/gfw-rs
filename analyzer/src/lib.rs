@@ -157,7 +157,7 @@ pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Sen
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
 /// Function to extract (String, String) pairs from CombinedPropMap
-pub fn extract_pairs_from_combinedpropmap(combined_map: CombinedPropMap) -> Vec<(String, String)> {
+pub fn extract_pairs_from_combinedpropmap(combined_map: &CombinedPropMap) -> Vec<(String, String)> {
     let mut result = Vec::new();
 
     for (analyzer_key, prop_map) in combined_map {
