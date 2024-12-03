@@ -6,7 +6,9 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
+use serde_json::Value;
 use std::{any::Any, fmt::Debug, net::IpAddr, sync::Arc};
+use tracing::error;
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
 pub trait Analyzer: Any + Send + Sync + Debug {
@@ -156,34 +158,34 @@ pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Sen
 /// analyzer -> PropMap
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
-/// Function to extract (String, String) pairs from CombinedPropMap
-pub fn extract_pairs_from_combinedpropmap(combined_map: &CombinedPropMap) -> Vec<(String, String)> {
-    let mut result = Vec::new();
-
-    for (analyzer_key, prop_map) in combined_map {
-        flatten_prop_map(analyzer_key, prop_map, &mut result);
+/// Extract json Value from CombinedPropMap
+pub fn extract_json_from_combinedpropmap(combined_map: &CombinedPropMap) -> Value {
+    let mut json_combined_map = serde_json::Map::new();
+    for (key, value) in combined_map {
+        json_combined_map.insert(key.to_owned(), prop_map_to_json(value));
     }
 
-    result
+    Value::Object(json_combined_map)
 }
 
-fn flatten_prop_map(prefix: &str, prop_map: &PropMap, result: &mut Vec<(String, String)>) {
-    for (key, value) in prop_map {
-        let new_key = format!("{}_{}", prefix, key);
+/// Convert a PropMap to a JSON Value.
+fn prop_map_to_json(prop_map: &PropMap) -> Value {
+    let mut json_map = serde_json::Map::new();
 
+    for (key, value) in prop_map {
         if let Some(string_value) = value.downcast_ref::<String>() {
-            result.push((new_key, string_value.clone()));
+            json_map.insert(key.clone(), Value::String(string_value.clone()));
         } else if let Some(nested_map) = value.downcast_ref::<PropMap>() {
-            flatten_prop_map(&new_key, nested_map, result);
-        } else if let Some(nested_map) =
-            value.downcast_ref::<std::collections::HashMap<String, String>>()
-        {
-            for (nested_key, nested_value) in nested_map {
-                let nested_new_key = format!("{}_{}", new_key, nested_key);
-                result.push((nested_new_key, nested_value.clone()));
-            }
+            json_map.insert(key.clone(), prop_map_to_json(nested_map));
+        } else if let Some(vec_maps) = value.downcast_ref::<Vec<PropMap>>() {
+            let json_vec: Vec<Value> = vec_maps.iter().map(prop_map_to_json).collect();
+            json_map.insert(key.clone(), Value::Array(json_vec));
+        } else {
+            error!("Unsupported value type!!! Key: {}", &key);
         }
     }
+
+    Value::Object(json_map)
 }
 
 /// The `PropUpdateType` enum defines the types of property updates that can occur.

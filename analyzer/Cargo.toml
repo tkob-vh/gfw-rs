@@ -9,6 +9,7 @@ bytes = "1.7.2"
 hex = "0.4.3"
 pnet.workspace = true
 ringbuf = "0.4.7"
+serde_json.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

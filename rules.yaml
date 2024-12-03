@@ -1,5 +1,15 @@
-- name: block http get
+- name: block v2ex http
   action: block
   analyzer: http
-  expr: http_method == "GET"
+  expr: props["http"]["headers"]["host"].ends_with("v2ex.com")
+
+- name: v2ex dns poisoning
+  action: modify
+  analyzer: dns
+  modifier:
+    name: dns
+    args:
+      a: "0.0.0.0"
+      aaaa: "::"
+  expr: props["dns"]["qr"] == "1" && !props["dns"]["questions"].filter(|q| q["name"].ends_with("github.com")).is_empty()
 

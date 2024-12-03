@@ -14,10 +14,13 @@
 //! - `parse_dns_message`: Parses a DNS message and returns a property map.
 //! - `dns_rr_to_prop_map`: Converts a DNS response record to a property map.
 
-use std::sync::{Arc, RwLock};
+use std::{
+    net::{Ipv4Addr, Ipv6Addr},
+    sync::{Arc, RwLock},
+};
 
 use bytes::{Buf, BytesMut};
-use pnet::packet::dns::{self, DnsQuery};
+use pnet::packet::dns::{self};
 use tracing::{debug, error};
 
 use crate::*;
@@ -358,7 +361,7 @@ impl TCPStream for DNSTCPStream {
 /// Get the parsed qname
 ///
 /// Copied from pnet.
-pub fn get_qname_parsed(raw: Vec<u8>) -> String {
+fn parse_qname(raw: Vec<u8>) -> String {
     let mut qname = String::new();
     let mut offset = 0;
     loop {
@@ -377,6 +380,40 @@ pub fn get_qname_parsed(raw: Vec<u8>) -> String {
         offset += label_len + 1;
     }
     qname
+}
+
+fn parse_dns_name(data: &[u8]) -> Result<String, &'static str> {
+    let mut result = String::new();
+    let mut pos = 0;
+
+    while pos < data.len() {
+        let len = data[pos] as usize;
+
+        if len == 0 {
+            // End of the name
+            break;
+        }
+
+        if len & 0xC0 == 0xC0 {
+            // Handle compressed pointer
+            // let pointer = ((data[pos] as usize & 0x3F) << 8) | data[pos + 1] as usize;
+            // pos = pointer; // Jump to the position indicated by the pointer
+            break;
+        } else {
+            // Regular label
+            pos += 1; // Skip the length byte
+            let label = &data[pos..pos + len];
+            result.push_str(&String::from_utf8_lossy(label));
+            result.push('.'); // Append a dot separator
+            pos += len; // Skip the label content
+        }
+    }
+
+    if result.ends_with('.') {
+        result.pop();
+    }
+
+    Ok(result)
 }
 
 /// Parse the DNS message and store them in the PropMap HashTable.
@@ -445,10 +482,7 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
         let mut prop_map_questions = vec![PropMap::new(); dns_packet.get_query_count() as usize];
 
         for (i, q) in dns_packet.get_queries_iter().enumerate() {
-            prop_map_questions[i].insert(
-                "name".to_string(),
-                Arc::new(get_qname_parsed(q.get_qname())),
-            );
+            prop_map_questions[i].insert("name".to_string(), Arc::new(parse_qname(q.get_qname())));
             prop_map_questions[i]
                 .insert("type".to_string(), Arc::new(format!("{}", q.get_qtype())));
             prop_map_questions[i]
@@ -514,39 +548,48 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     );
     prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl().to_string()));
 
+    debug!(
+        "rr data length: {}, data: {:2x?}",
+        rr.get_data_len(),
+        rr.get_data()
+    );
+
     match rr.get_rtype() {
         dns::DnsTypes::A => {
-            prop_map.insert("a".to_string(), Arc::new(String::from_utf8(rr.get_data())));
+            prop_map.insert(
+                "a".to_string(),
+                Arc::new(format!(
+                    "{}",
+                    Ipv4Addr::from(TryInto::<[u8; 4]>::try_into(rr.get_data()).unwrap(),)
+                )),
+            );
         }
         dns::DnsTypes::AAAA => {
             prop_map.insert(
                 "aaaa".to_string(),
-                Arc::new(String::from_utf8(rr.get_data())),
+                Arc::new(format!(
+                    "{}",
+                    Ipv6Addr::from(TryInto::<[u8; 16]>::try_into(rr.get_data()).unwrap())
+                )),
             );
         }
         dns::DnsTypes::NS => {
-            prop_map.insert("ns".to_string(), Arc::new(String::from_utf8(rr.get_data())));
+            prop_map.insert("ns".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
         }
         dns::DnsTypes::CNAME => {
             prop_map.insert(
                 "cname".to_string(),
-                Arc::new(String::from_utf8(rr.get_data())),
+                Arc::new(parse_dns_name(&rr.get_data())),
             );
         }
         dns::DnsTypes::PTR => {
-            prop_map.insert(
-                "ptr".to_string(),
-                Arc::new(String::from_utf8(rr.get_data())),
-            );
+            prop_map.insert("ptr".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
         }
         dns::DnsTypes::TXT => {
-            prop_map.insert(
-                "txt".to_string(),
-                Arc::new(String::from_utf8(rr.get_data())),
-            );
+            prop_map.insert("txt".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
         }
         dns::DnsTypes::MX => {
-            prop_map.insert("mx".to_string(), Arc::new(String::from_utf8(rr.get_data())));
+            prop_map.insert("mx".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
         }
         _ => {}
     }
@@ -683,5 +726,16 @@ mod tests {
         let rr = dns_packet.get_responses_iter().next().unwrap();
         let prop_map = dns_rr_to_prop_map(&rr);
         assert!(prop_map.contains_key("name"));
+    }
+
+    #[test]
+    fn test_parse_dns_name() {
+        let data: Vec<u8> = vec![
+            0x4, 0x65, 0x73, 0x70, 0x6e, 0x3, 0x67, 0x6e, 0x73, 0xc0, 0x11,
+        ];
+
+        let res = parse_dns_name(&data).unwrap();
+
+        assert_eq!(res, "espn.gns");
     }
 }
