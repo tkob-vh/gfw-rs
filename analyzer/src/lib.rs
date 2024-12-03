@@ -161,7 +161,7 @@ pub fn extract_pairs_from_combinedpropmap(combined_map: &CombinedPropMap) -> Vec
     let mut result = Vec::new();
 
     for (analyzer_key, prop_map) in combined_map {
-        flatten_prop_map(&analyzer_key, &prop_map, &mut result);
+        flatten_prop_map(analyzer_key, prop_map, &mut result);
     }
 
     result
