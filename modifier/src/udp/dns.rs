@@ -11,7 +11,7 @@ use std::{
     net::{Ipv4Addr, Ipv6Addr},
     str::FromStr,
 };
-use tracing::{self, error, warn};
+use tracing::{self, debug, error, warn};
 
 /// A DNS modifier that implements the `Modifier` trait.
 #[derive(Debug)]
@@ -87,18 +87,25 @@ impl Modifier for DNSModifier {
 
 /// An instance of the DNS modifier containing the IPv4 and IPv6 addresses.
 #[derive(Debug)]
-struct DNSModifierInstance {
+pub struct DNSModifierInstance {
     a: Ipv4Addr,
     aaaa: Ipv6Addr,
 }
 
 /// Creates a new `DNSModifierInstance` with unspecified IPv4 and IPv6 addresses.
 impl DNSModifierInstance {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             a: Ipv4Addr::UNSPECIFIED,
             aaaa: Ipv6Addr::UNSPECIFIED,
         }
+        //TODO:("Read config from ruleset");
+    }
+}
+
+impl Default for DNSModifierInstance {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -127,12 +134,12 @@ impl UDPModifierInstance for DNSModifierInstance {
 
         // No querys.
         if dns_packet.get_query_count() == 0 {
-            error!("Empty dns question");
+            debug!("Empty dns question");
             return None;
         }
 
         if dns_packet.get_response_count() == 0 {
-            error!("Empty dns answers");
+            debug!("Empty dns answers");
             return None;
         }
 
@@ -143,38 +150,38 @@ impl UDPModifierInstance for DNSModifierInstance {
         // Get the qtype and modify the response record in the dns packet.
         match query.get_qtype() {
             DnsTypes::A => {
-                if !self.a.is_unspecified() {
-                    let rr = DnsResponse {
-                        name_tag: 0xc00c,
-                        rtype: DnsTypes::A,
-                        rclass: DnsClasses::IN,
-                        ttl: 100,
-                        data_len: 4u16,
-                        data: self.a.octets().to_vec(),
-                        payload: vec![],
-                    };
+                // if !self.a.is_unspecified() {
+                let rr = DnsResponse {
+                    name_tag: 0xc00c,
+                    rtype: DnsTypes::A,
+                    rclass: DnsClasses::IN,
+                    ttl: 100,
+                    data_len: 4u16,
+                    data: self.a.octets().to_vec(),
+                    payload: vec![],
+                };
 
-                    dns_packet.set_response_count(1);
+                dns_packet.set_response_count(1);
 
-                    dns_packet.set_responses(&[rr]);
-                }
+                dns_packet.set_responses(&[rr]);
+                // }
             }
             DnsTypes::AAAA => {
-                if !self.aaaa.is_unspecified() {
-                    let rr = DnsResponse {
-                        name_tag: 0xc00c,
-                        rtype: DnsTypes::AAAA,
-                        rclass: DnsClasses::IN,
-                        ttl: 100,
-                        data_len: 16u16,
-                        data: self.aaaa.octets().to_vec(),
-                        payload: vec![],
-                    };
+                // if !self.aaaa.is_unspecified() {
+                let rr = DnsResponse {
+                    name_tag: 0xc00c,
+                    rtype: DnsTypes::AAAA,
+                    rclass: DnsClasses::IN,
+                    ttl: 100,
+                    data_len: 16u16,
+                    data: self.aaaa.octets().to_vec(),
+                    payload: vec![],
+                };
 
-                    dns_packet.set_response_count(1);
+                dns_packet.set_response_count(1);
 
-                    dns_packet.set_responses(&[rr]);
-                }
+                dns_packet.set_responses(&[rr]);
+                // }
             }
             _ => {}
         }
