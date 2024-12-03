@@ -1,13 +1,15 @@
 //! This module contains the definition of an expression rule and the logic to read and compile them.
 use crate::Action;
-use nt_analyzer::extract_pairs_from_combinedpropmap;
+use nt_analyzer::extract_json_from_combinedpropmap;
 use nt_analyzer::Analyzer;
 use nt_modifier::{Instance, Modifier};
+use rhai::Dynamic;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
+use tracing::debug;
 use tracing::{info, warn};
 
 /// Represents an expression rule.
@@ -96,14 +98,14 @@ impl crate::Ruleset for ExprRuleset {
 }
 
 fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
-    scope.push("src_ip", info.src_ip.to_string());
-    scope.push("protocol", info.protocol.to_string());
-    scope.push("src_port", info.src_port.to_string());
-    scope.push("dst_ip", info.dst_ip.to_string());
-    scope.push("dst_port", info.dst_port.to_string());
-    for (key, value) in extract_pairs_from_combinedpropmap(&info.props) {
-        scope.push(key, value);
-    }
+    // Convert PropMap to JSON
+    let json_value = extract_json_from_combinedpropmap(&info.props);
+    let result: Dynamic = serde_json::from_value(json_value).unwrap();
+
+    // // Add JSON string to scope
+    scope.push("props", result);
+
+    debug!("The properties: {:?}", scope);
 }
 
 /// Compiles a set of expression rules.

@@ -11,3 +11,4 @@ nt-modifier.workspace = true
 rhai.workspace = true
 nt-analyzer.workspace = true
 tracing.workspace = true
+serde_json.workspace = true
