@@ -196,6 +196,7 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
     use std::net::{Ipv4Addr, Ipv6Addr};
+    use tracing_subscriber;
 
     #[test]
     fn test_dns_modifier_new() {
@@ -233,15 +234,44 @@ mod tests {
 
     #[test]
     fn test_dns_modifier_process_aaaa() {
-        let instance = DNSModifierInstance::new();
+        tracing_subscriber::FmtSubscriber::builder()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_target(false)
+            .with_thread_ids(true)
+            .with_file(true)
+            .with_line_number(true)
+            .with_ansi(true)
+            .init();
 
+        let instance = DNSModifierInstance {
+            a: Ipv4Addr::UNSPECIFIED,
+            aaaa: Ipv6Addr::new(0x2404, 0x6800, 0x4001, 0x801, 0, 0, 0, 0x200e),
+        };
+
+        // This represents a DNS response packet with an AAAA query and response
         let mut packet_data = vec![
-            0x8d, 0xb3, 0x81, 0x80, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x3, 0x77, 0x77, 0x77,
-            0x6, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x3, 0x63, 0x6f, 0x6d, 0x0, 0x0, 0x1c, 0x0,
-            0x1, 0xc0, 0xc, 0x0, 0x5, 0x0, 0x1, 0x0, 0x0, 0x2, 0x79, 0x0, 0x8, 0x3, 0x77, 0x77,
-            0x77, 0x1, 0x6c, 0xc0, 0x10,
+            0x8d, 0xb3, 0x81, 0x80, // Header
+            0x00, 0x01, 0x00, 0x01, // QDCOUNT=1, ANCOUNT=1
+            0x00, 0x00, 0x00, 0x00, // NSCOUNT=0, ARCOUNT=0
+            // Question section
+            0x03, b'w', b'w', b'w', // www
+            0x06, b'g', b'o', b'o', b'g', b'l', b'e', // google
+            0x03, b'c', b'o', b'm', // com
+            0x00, // null terminator
+            0x00, 0x1c, // QTYPE=AAAA
+            0x00, 0x01, // QCLASS=IN
+            // Answer section
+            0xc0, 0x0c, // Name pointer
+            0x00, 0x1c, // TYPE=AAAA
+            0x00, 0x01, // CLASS=IN
+            0x00, 0x00, 0x02, 0x79, // TTL
+            0x00, 0x10, // RDLENGTH=16
+            // RDATA (16 bytes of IPv6)
+            0x24, 0x04, 0x68, 0x00, 0x40, 0x01, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x20, 0x0e,
         ];
 
-        let _ = instance.process(&mut packet_data).unwrap();
+        let result = instance.process(&mut packet_data).unwrap();
+        assert!(result.len() > 0);
     }
 }
