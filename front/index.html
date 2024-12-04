@@ -11,7 +11,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://gfw.dev/assets/logo.png" alt="Header Image" class="header-image" style="width: 50px; height: auto;">
+            <img src="https://gfw.dev/assets/logo.png" alt="Header Image" class="header-image"
+                style="width: 50px; height: auto;">
             <button class="button button-start" onclick="toggleService(this)">启动服务</button>
         </div>
 
@@ -93,7 +94,7 @@
         <div id="logs" class="tab-content">
             <h3>服务日志</h3>
             <div id="log-container" style="display:none;">
-                <div id="logs"></div>
+                <div id="logs_detail"></div>
             </div>
         </div>
 
@@ -106,23 +107,6 @@
     </div>
 
     <script src="/script.js"></script>
-    <script>
-        function showTab(tabName) {
-            const tabs = document.querySelectorAll('.tab-content');
-            const tabButtons = document.querySelectorAll('.tab-button');
-
-            tabs.forEach(tab => {
-                tab.classList.remove('active');
-            });
-
-            tabButtons.forEach(button => {
-                button.classList.remove('active');
-            });
-
-            document.getElementById(tabName).classList.add('active');
-            document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`).classList.add('active');
-        }
-    </script>
 </body>
 
 </html>

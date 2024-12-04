@@ -298,16 +298,25 @@ function toggleService(button) {
 
 let ws = null;  // WebSocket 实例
 
-function toggleLogs() {
+function OpenLogs() {
     const logContainer = document.getElementById('log-container');
-    const logs = document.getElementById('logs');
+    const logs = document.getElementById('logs_detail');
 
     // If the log container is currently hidden, show it
     if (logContainer.style.display === 'none' || logContainer.style.display === '') {
         logContainer.style.display = 'block';
         setupWebSocket(logs); // Set up WebSocket connection to receive logs
-    } else {
-        logContainer.style.display = 'none'; // Hide the log container
+    }
+}
+
+function CloseLogs() {
+    const logContainer = document.getElementById('log-container');
+    const logs = document.getElementById('logs_detail');
+
+    // If the log container is currently hidden, show it
+    if (logContainer.style.display === 'block') {
+        // Hide the log container
+        logContainer.style.display = 'none';
         logs.innerHTML = ''; // Clear logs if hiding
         if (ws) {
             ws.close(); // Close WebSocket connection
@@ -326,7 +335,7 @@ function setupWebSocket(logs) {
         const logEntry = document.createElement('div');
         logEntry.textContent = event.data;
         logs.appendChild(logEntry);
-        logs.scrollTop = logs.scrollHeight; // 自动滚动到最新日志
+        logs.scrollTop = logs.scrollHeight;
     };
     ws.onerror = function () {
         console.error('WebSocket error');
@@ -354,12 +363,9 @@ function showTab(tabName) {
 
     // Automatically show logs if the logs tab is selected
     if (tabName === 'logs') {
-        const logContainer = document.getElementById('log-container');
-        logContainer.style.display = 'block'; // Show the log container
-        toggleLogs(); // Call the function to set up WebSocket or any other log-related setup
+        OpenLogs(); // Call the function to set up WebSocket or any other log-related setup
     } else {
         // Hide the log container if another tab is selected
-        const logContainer = document.getElementById('log-container');
-        logContainer.style.display = 'none';
+        CloseLogs();
     }
 }
