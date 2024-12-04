@@ -10,7 +10,7 @@ use lru::LruCache;
 use nt_modifier::UDPModifierInstance;
 use pnet::packet::{udp::MutableUdpPacket, MutablePacket, Packet};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::utils::process_prop_update;
 
@@ -455,17 +455,22 @@ impl UDPStream {
                             .as_any()
                             .is::<nt_modifier::udp::dns::DNSModifierInstance>()
                         {
-                            let modifier =
-                                Arc::new(nt_modifier::udp::dns::DNSModifierInstance::new())
-                                    as Arc<dyn UDPModifierInstance>;
+                            let modifier = Arc::new(
+                                modifier
+                                    .as_any()
+                                    .downcast_ref::<nt_modifier::udp::dns::DNSModifierInstance>()
+                                    .unwrap()
+                                    .clone(),
+                            )
+                                as Arc<dyn UDPModifierInstance>;
                             match modifier.process(udp_packet.payload_mut()) {
                                 Some(modified) => {
                                     udp_context.packet = BytesMut::from(&modified[..]);
                                     udp_context.verdict = UDPVerdict::AcceptModify;
                                 }
                                 None => {
-                                    error!(
-                                    "[Modifer error]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
+                                    warn!(
+                                    "[Modifer warning]: id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}",
                                     self.info.id,
                                     self.info.src_ip,
                                     self.info.src_port,
