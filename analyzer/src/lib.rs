@@ -6,7 +6,7 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
-use serde_json::Value;
+use serde_json::{Number, Value};
 use std::{any::Any, fmt::Debug, net::IpAddr, sync::Arc};
 use tracing::error;
 
@@ -180,6 +180,8 @@ fn prop_map_to_json(prop_map: &PropMap) -> Value {
         } else if let Some(vec_maps) = value.downcast_ref::<Vec<PropMap>>() {
             let json_vec: Vec<Value> = vec_maps.iter().map(prop_map_to_json).collect();
             json_map.insert(key.clone(), Value::Array(json_vec));
+        } else if let Some(value) = value.downcast_ref::<u16>() {
+            json_map.insert(key.clone(), Value::Number(Number::from(value.to_owned())));
         } else {
             error!("Unsupported value type!!! Key: {}", &key);
         }
