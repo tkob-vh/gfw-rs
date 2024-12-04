@@ -9,8 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use tracing::debug;
-use tracing::{info, warn};
+use tracing::{debug, error, info};
 
 /// Represents an expression rule.
 #[derive(Deserialize, Debug)]
@@ -88,7 +87,7 @@ impl crate::Ruleset for ExprRuleset {
             }
         }
 
-        warn!("Non of the rules were matched, returning default action 'Maybe'");
+        debug!("Non of the rules were matched, returning default action 'Maybe'");
 
         crate::MatchResult {
             action: crate::Action::Maybe,
@@ -160,7 +159,7 @@ pub fn compile_expr_rules(
                 anal.insert(rule.analyzer.clone(), analyzers[&rule.analyzer].clone());
             }
         } else {
-            warn!("Failed to compile rule: {}", rule.name);
+            error!("Failed to compile rule: {}", rule.name);
         }
     }
     ExprRuleset {
