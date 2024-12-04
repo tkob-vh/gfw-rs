@@ -86,7 +86,7 @@ impl Modifier for DNSModifier {
 }
 
 /// An instance of the DNS modifier containing the IPv4 and IPv6 addresses.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DNSModifierInstance {
     a: Ipv4Addr,
     aaaa: Ipv6Addr,

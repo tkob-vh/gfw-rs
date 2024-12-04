@@ -3,17 +3,15 @@
   analyzer: http
   expr: props["http"]["headers"]["host"].ends_with("v2ex.com")
 
-
-- name: v2ex dns poisoning
+- name: github dns poisoning
   action: modify
   analyzer: dns
   modifier:
     name: dns
     args:
-      a: "0.0.0.0"
+      a: "110.242.68.66"
       aaaa: "::"
   expr: props["dns"]["qr"] == "1" && !props["dns"]["questions"].filter(|q| q["name"].ends_with("github.com")).is_empty()
-
 
 - name: google dns poisoning
   action: modify
@@ -34,4 +32,4 @@
 - name: Block OpenVPN
   action: block
   analyzer: openvpn
-  expr: props["openvpn"] != null && props["openvpn"]["rx_pkt_cnt"] + props["openvpn"]["tx_pkt_cnt"] > 50
+  expr: props["openvpn"] != None && props["openvpn"]["rx_pkt_cnt"] + props["openvpn"]["tx_pkt_cnt"] > 50
