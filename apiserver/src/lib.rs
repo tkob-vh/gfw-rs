@@ -50,7 +50,6 @@ impl std::io::Write for LogWriter {
 }
 
 /// The server configuration.
-#[derive(Clone)]
 pub struct ServerConfig {
     /// The log writer, used to write logs.
     pub log_writer: LogWriter,
@@ -61,5 +60,8 @@ pub struct ServerConfig {
     pub rule_set: Option<Arc<ExprRuleset>>,
     pub io_impl: Option<Arc<dyn PacketIO>>,
     pub engine: Option<Arc<Mutex<nt_engine::engine::Engine>>>,
-    pub shutdown: Option<Arc<Sender<()>>>,
+    pub shutdown: Option<Sender<()>>,
+
+    /// stop_engine_tx also stand for the engine is running.
+    pub stop_engine_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }

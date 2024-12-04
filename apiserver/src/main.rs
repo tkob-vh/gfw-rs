@@ -34,6 +34,7 @@ async fn main() {
         engine: None,
         rule_set: None,
         shutdown: None,
+        stop_engine_tx: None,
     }))));
 
     tracing_subscriber::FmtSubscriber::builder()
@@ -47,6 +48,7 @@ async fn main() {
         .init();
 
     // Start the server
+    println!("Listening on {}", addr);
     info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 

@@ -50,6 +50,9 @@ pub async fn create_router() -> Router {
 
 async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
+    if server_config.stop_engine_tx.is_some() {
+        return Ok("Engine already started".to_string());
+    }
 
     if server_config.io_impl.is_none() {
         info!("Setup IO for nfqueue...");
@@ -91,30 +94,47 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     }
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
+    let (stop_engine_tx, stop_engine_rx) = tokio::sync::oneshot::channel::<()>();
+    server_config.stop_engine_tx = Some(stop_engine_tx);
     let shutdown_tx_clone = shutdown_tx.clone();
     tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        info!("Shutting down gracefully...");
-        shutdown_tx_clone.send(()).await.unwrap();
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                info!("Ctrl+C received, shutting down gracefully...");
+                shutdown_tx_clone.send(()).await.unwrap();
+            },
+            _ = stop_engine_rx => {
+                info!("Shutdown task aborted.");
+            }
+        }
     });
-    info!("Engine started");
 
-    server_config.shutdown = Some(Arc::new(shutdown_tx));
+    server_config.shutdown = Some(shutdown_tx);
 
     let eng = server_config.engine.clone().unwrap(); // here should not panic
 
     // Run the engine until shutdown signal
     let engine_handle = tokio::spawn(async move { eng.lock().await.run(shutdown_rx).await });
     drop(engine_handle);
+    info!("Engine started");
     Ok("Engine started".to_string())
 }
 
 async fn stop_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
-    let server_config = server.read().await;
+    let mut server_config = server.write().await;
+    if server_config.stop_engine_tx.is_none() {
+        return Err(ServiceError::Common {
+            message: "Engine Has Not Started Yet".to_string(),
+        });
+    }
     let shutdown = server_config.shutdown.clone().unwrap();
+    let stop_engine_tx = server_config.stop_engine_tx.take().unwrap();
     shutdown
         .send(())
         .await
+        .map_err(|_| ServiceError::ShutdownSignal)?;
+    stop_engine_tx
+        .send(())
         .map_err(|_| ServiceError::ShutdownSignal)?;
     Ok("Engine stopped".to_string())
 }
