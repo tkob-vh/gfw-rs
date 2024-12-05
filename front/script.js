@@ -101,6 +101,7 @@ function loadConfig() {
 // 增加规则
 // 增加规则
 let ruleId = 0;
+
 function addRule() {
     const rulesContainer = document.getElementById('rules-container');
     const newRule = document.createElement('div');
@@ -110,11 +111,12 @@ function addRule() {
     newRule.innerHTML = `
         <input type="text" placeholder="Name" style="font-size: 12px; width: 150px;">
         
-        <select style="width: 120px;">
+        <select style="width: 120px;" onchange="toggleModify(${ruleId})">
             <option value="allow">Allow</option>
             <option value="block">Block</option>
             <option value="deny">Deny</option>
             <option value="alert">Alert</option>
+            <option value="modify">Modify</option>
         </select>
         
         <select style="width: 120px;">
@@ -124,6 +126,25 @@ function addRule() {
             <option value="icmp">ICMP</option>
             <option value="ssh">SSH</option>
         </select>
+
+        <div id="modify-entry-${ruleId}" style="display: none; margin-top: 5px;">
+            <div style="margin-bottom: 10px;">
+                <label for="modify-name-${ruleId}" style="font-size: 12px;">Modify Name:</label>
+                <input type="text" id="modify-name-${ruleId}" placeholder="Modify Name" style="width: 200px; font-size: 12px;">
+            </div>
+            
+            <div id="args-container-${ruleId}" style="margin-bottom: 10px;">
+                <label style="font-size: 12px;">Arguments:</label>
+                <div id="args-list-${ruleId}">
+                    <div class="args-item" id="args-item-0-${ruleId}" style="margin-bottom: 5px;">
+                        <input type="text" placeholder="Key" style="width: 50px; font-size: 12px;">
+                        <input type="text" placeholder="Value" style="width: 100px; font-size: 12px;">
+                        <button type="button" onclick="removeArg(${ruleId}, 0)" class="button-delete">删除</button>
+                    </div>
+                </div>
+                <button type="button" onclick="addArg(${ruleId})" class="button-add">添加 Argument</button>
+            </div>
+        </div>
         
         <input type="text" placeholder="Expr" style="width: 300px;">
         
@@ -135,6 +156,39 @@ function addRule() {
     ruleId++; // 更新规则ID，确保每个规则都有唯一的ID
 }
 
+function toggleModify(ruleId) {
+    const actionSelect = document.querySelector(`#rule-${ruleId} select:nth-of-type(1)`);
+    const modifyEntryDiv = document.getElementById(`modify-entry-${ruleId}`);
+
+    if (actionSelect.value === 'modify') {
+        modifyEntryDiv.style.display = 'block';
+    } else {
+        modifyEntryDiv.style.display = 'none';
+    }
+}
+
+function addArg(ruleId) {
+    const argsList = document.getElementById(`args-list-${ruleId}`);
+    const newArgIndex = argsList.children.length;
+
+    const newArgItem = document.createElement('div');
+    newArgItem.classList.add('args-item');
+    newArgItem.setAttribute('id', `args-item-${newArgIndex}-${ruleId}`);
+    newArgItem.style.marginBottom = '5px';
+
+    newArgItem.innerHTML = `
+        <input type="text" placeholder="Key" style="width: 50px; font-size: 12px;">
+        <input type="text" placeholder="Value" style="width: 100px; font-size: 12px;">
+        <button type="button" onclick="removeArg(${ruleId}, ${newArgIndex})" class="button-delete">删除</button>
+    `;
+
+    argsList.appendChild(newArgItem);
+}
+
+function removeArg(ruleId, index) {
+    const argItem = document.getElementById(`args-item-${index}-${ruleId}`);
+    argItem.remove();
+}
 
 // 删除规则
 function deleteRule(id) {
@@ -147,29 +201,6 @@ function deleteRule(id) {
     }
 }
 
-// 更新 localStorage 中的规则
-function updateRulesInLocalStorage() {
-    const rules = [];
-
-    // 获取所有规则项并更新 localStorage
-    document.querySelectorAll('.rule-item').forEach((rule, index) => {
-        const name = rule.querySelector('input[type="text"]:nth-child(1)').value;
-        const action = rule.querySelector('select:nth-child(2)').value;
-        const analyzer = rule.querySelector('select:nth-child(3)').value;
-        const expr = rule.querySelector('input[type="text"]:nth-child(4)').value;
-
-        // 确保所有字段都有值
-        if (name && action && analyzer && expr) {
-            rules.push({ name, action, analyzer, expr });
-        }
-    });
-
-    // 将更新后的规则保存到 localStorage
-    localStorage.setItem('rules', JSON.stringify(rules));
-}
-
-
-// 保存规则到 localStorage
 function saveRules() {
     const rules = [];
 
@@ -178,11 +209,38 @@ function saveRules() {
         const name = rule.querySelector('input[type="text"]:nth-child(1)').value;
         const action = rule.querySelector('select:nth-child(2)').value;  // 从 <select> 获取值
         const analyzer = rule.querySelector('select:nth-child(3)').value;  // 从 <select> 获取值
-        const expr = rule.querySelector('input[type="text"]:nth-child(4)').value;
+
+        // 先处理 modify 部分
+        let modifier = null; // 默认没有 modify
+        if (action === 'modify') {
+            const modifyName = rule.querySelector(`#modify-name-${rule.id.split('-')[1]}`).value;
+
+            // 获取所有 args
+            const args = {};
+            rule.querySelectorAll('.args-item').forEach(argItem => {
+                const key = argItem.querySelector('input[placeholder="Key"]').value;
+                const value = argItem.querySelector('input[placeholder="Value"]').value;
+                if (key && value) {
+                    args[key] = value;
+                }
+            });
+
+            // 只有在有 modifyName 时才记录
+            if (modifyName) {
+                modifier = {
+                    name: modifyName,
+                    args: args
+                };
+            }
+        }
+
+        // 获取 expr 部分
+        const expr = rule.querySelector('input[type="text"]:nth-child(5)').value;
 
         // 确保所有字段都有值
         if (name && action && analyzer && expr) {
-            rules.push({ name, action, analyzer, expr });
+            // 将 modify 放在 expr 前面
+            rules.push({ name, action, analyzer, modifier, expr });
         }
     });
 
@@ -209,6 +267,28 @@ function saveRules() {
             console.error('保存失败:', error);
             alert('保存失败，请重试');
         });
+}
+
+
+// 更新 localStorage 中的规则
+function updateRulesInLocalStorage() {
+    const rules = [];
+
+    // 获取所有规则项并更新 localStorage
+    document.querySelectorAll('.rule-item').forEach((rule, index) => {
+        const name = rule.querySelector('input[type="text"]:nth-child(1)').value;
+        const action = rule.querySelector('select:nth-child(2)').value;
+        const analyzer = rule.querySelector('select:nth-child(3)').value;
+        const expr = rule.querySelector('input[type="text"]:nth-child(4)').value;
+
+        // 确保所有字段都有值
+        if (name && action && analyzer && expr) {
+            rules.push({ name, action, analyzer, expr });
+        }
+    });
+
+    // 将更新后的规则保存到 localStorage
+    localStorage.setItem('rules', JSON.stringify(rules));
 }
 
 // 从 localStorage 加载规则
