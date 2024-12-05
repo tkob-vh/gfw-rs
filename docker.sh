@@ -38,11 +38,11 @@ if [ "$ACTION" == "build" ]; then
 
   red_echo "Running $CONTAINER_RUNTIME container..."
   if $CONTAINER_RUNTIME run -d -p 3000:3000 \
-    --cap-add=NET_ADMIN,NET_RAW \
+    --cap-add=NET_ADMIN --cap-add=NET_RAW\
     --volume $(pwd):/app \
     --name $CONTAINER_NAME $IMAGE_NAME; then
     red_echo "$CONTAINER_RUNTIME container started successfully."
-    $CONTAINER_RUNTIME exec --detach --workdir /app $CONTAINER_NAME bash -c 'cargo build --release && cargo run --bin apiserver'
+    # $CONTAINER_RUNTIME exec --detach --workdir /app $CONTAINER_NAME bash -c 'cargo build --release && cargo run --bin apiserver'
   else
     red_echo "Failed to start $CONTAINER_RUNTIME container."
     exit 1
