@@ -73,7 +73,7 @@ impl crate::Ruleset for ExprRuleset {
                     if re {
                         return {
                             info!("Rule matched: name = {:?}, id = {:?}, src = {:?}:{:?}, dst = {:?}:{:?}, props = {:?}",
-                            &rule.name, &info.id, &info.src_ip, &info.src_port, &info.dst_ip, &info.dst_port, &info.props);
+                            &rule.name, &info.id, &info.src_ip, &info.src_port, &info.dst_ip, &info.dst_port, &scope);
                             crate::MatchResult {
                                 action: rule.action.clone(),
                                 modifier: rule.modifier.clone(),
@@ -103,8 +103,6 @@ fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
 
     // // Add JSON string to scope
     scope.push("props", result);
-
-    debug!("The properties: {:?}", scope);
 }
 
 /// Compiles a set of expression rules.

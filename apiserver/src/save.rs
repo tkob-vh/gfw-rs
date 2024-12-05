@@ -18,7 +18,6 @@ async fn save_config(
     let mut server_config = server.write().await;
     server_config.config = Arc::new(config);
     debug!("Saved config: {:?}", server_config.config);
-    todo!("Save the config to the config file.");
 }
 
 async fn save_rules(
@@ -45,6 +44,4 @@ async fn save_rules(
         );
         server_config.rule_set = Some(Arc::new(ruleset));
     }
-
-    todo!("Save the rules to the ruleset file.");
 }
