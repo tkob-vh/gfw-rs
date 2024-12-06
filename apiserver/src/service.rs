@@ -123,9 +123,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
 async fn stop_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
     if server_config.stop_engine_tx.is_none() {
-        return Err(ServiceError::Common {
-            message: "Engine Has Not Started Yet".to_string(),
-        });
+        return Ok("Engine Has Not Started Yet".to_string());
     }
     let shutdown = server_config.shutdown.clone().unwrap();
     let stop_engine_tx = server_config.stop_engine_tx.take().unwrap();
@@ -157,5 +155,6 @@ async fn handle_websocket(mut ws: WebSocket, server: Extension<SharedServerConfi
                 break;
             }
         }
+        let _ = ws.close().await;
     });
 }
