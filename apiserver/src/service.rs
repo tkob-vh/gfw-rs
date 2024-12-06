@@ -9,7 +9,6 @@ use axum::{
 use nt_engine::Engine;
 use std::error::Error;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::Mutex;
 use tracing::info;
 
 use snafu::{ResultExt, Snafu};
@@ -50,7 +49,7 @@ pub async fn create_router() -> Router {
 
 async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
-    if server_config.stop_engine_tx.is_some() {
+    if server_config.shutdown.is_some() {
         return Ok("Engine already started".to_string());
     }
 
@@ -68,72 +67,49 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
         ));
     }
 
-    if server_config.engine.is_none() {
-        let engine_config = nt_engine::Config {
-            workers: server_config.config.workers.count,
-            worker_queue_size: server_config.config.workers.queue_size,
-            worker_tcp_max_buffered_pages_total: server_config
-                .config
-                .workers
-                .tcp_max_buffered_pages_total,
-            worker_tcp_max_buffered_pages_per_conn: server_config
-                .config
-                .workers
-                .tcp_max_buffered_pages_per_conn,
-            worker_tcp_timeout: Duration::from_secs(server_config.config.workers.tcp_timeout),
-            worker_udp_max_streams: server_config.config.workers.udp_max_streams,
-            io: server_config.io_impl.clone().unwrap(), // here should not panic
-            ruleset: server_config.rule_set.clone().ok_or(ServiceError::Common {
-                message: "Ruleset not found".to_string(),
-            })?,
-        };
-        let engine = Arc::new(Mutex::new(
-            nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?,
-        ));
-        server_config.engine = Some(engine);
-    }
+    let engine_config = nt_engine::Config {
+        workers: server_config.config.workers.count,
+        worker_queue_size: server_config.config.workers.queue_size,
+        worker_tcp_max_buffered_pages_total: server_config
+            .config
+            .workers
+            .tcp_max_buffered_pages_total,
+        worker_tcp_max_buffered_pages_per_conn: server_config
+            .config
+            .workers
+            .tcp_max_buffered_pages_per_conn,
+        worker_tcp_timeout: Duration::from_secs(server_config.config.workers.tcp_timeout),
+        worker_udp_max_streams: server_config.config.workers.udp_max_streams,
+        io: server_config.io_impl.clone().unwrap(), // here should not panic
+        ruleset: server_config.rule_set.clone().ok_or(ServiceError::Common {
+            message: "Ruleset not found".to_string(),
+        })?,
+    };
+    let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
-    let (stop_engine_tx, stop_engine_rx) = tokio::sync::oneshot::channel::<()>();
-    server_config.stop_engine_tx = Some(stop_engine_tx);
-    let shutdown_tx_clone = shutdown_tx.clone();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {
-                info!("Ctrl+C received, shutting down gracefully...");
-                shutdown_tx_clone.send(()).await.unwrap();
-            },
-            _ = stop_engine_rx => {
-                info!("Shutdown task aborted.");
-            }
-        }
-    });
 
     server_config.shutdown = Some(shutdown_tx);
 
-    let eng = server_config.engine.clone().unwrap(); // here should not panic
-
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move { eng.lock().await.run(shutdown_rx).await });
-    drop(engine_handle);
+    let engine_handle = tokio::spawn(async move { engine.run(shutdown_rx).await });
+    server_config.engine_handler = Some(engine_handle);
     info!("Engine started");
     Ok("Engine started".to_string())
 }
 
 async fn stop_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
-    if server_config.stop_engine_tx.is_none() {
+    if server_config.shutdown.is_none() {
         return Ok("Engine Has Not Started Yet".to_string());
     }
-    let shutdown = server_config.shutdown.clone().unwrap();
-    let stop_engine_tx = server_config.stop_engine_tx.take().unwrap();
+    let shutdown = server_config.shutdown.take().unwrap();
     shutdown
         .send(())
         .await
         .map_err(|_| ServiceError::ShutdownSignal)?;
-    stop_engine_tx
-        .send(())
-        .map_err(|_| ServiceError::ShutdownSignal)?;
+    let engine_handler = server_config.engine_handler.take().unwrap();
+    let _ = engine_handler.await.unwrap();
     Ok("Engine stopped".to_string())
 }
 

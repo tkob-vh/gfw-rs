@@ -3,8 +3,9 @@ use nt_cmd::config;
 use nt_io::PacketIO;
 use nt_modifier::Modifier;
 use nt_ruleset::expr_rule::ExprRuleset;
+use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc::Sender, Mutex, RwLock};
+use tokio::sync::{broadcast, mpsc::Sender, RwLock};
 use tracing_subscriber::fmt::MakeWriter;
 
 pub mod file;
@@ -59,9 +60,8 @@ pub struct ServerConfig {
     /// _
     pub rule_set: Option<Arc<ExprRuleset>>,
     pub io_impl: Option<Arc<dyn PacketIO>>,
-    pub engine: Option<Arc<Mutex<nt_engine::engine::Engine>>>,
-    pub shutdown: Option<Sender<()>>,
 
-    /// stop_engine_tx also stand for the engine is running.
-    pub stop_engine_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    /// shutdown also stand for the engine is running.
+    pub shutdown: Option<Sender<()>>,
+    pub engine_handler: Option<tokio::task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
 }
