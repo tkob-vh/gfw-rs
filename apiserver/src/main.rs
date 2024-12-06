@@ -31,10 +31,9 @@ async fn main() {
         modifiers: vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())],
         config: Arc::new(nt_cmd::config::CliConfig::default()),
         io_impl: None,
-        engine: None,
         rule_set: None,
         shutdown: None,
-        stop_engine_tx: None,
+        engine_handler: None,
     }))));
 
     tracing_subscriber::FmtSubscriber::builder()
