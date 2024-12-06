@@ -26,22 +26,13 @@ async fn save_rules(
 ) {
     let mut server_config = server.write().await;
     debug!("Saved rules: {:?}", rules);
-    if let Some(old_ruleset) = &server_config.rule_set {
-        let new_ruleset = nt_ruleset::expr_rule::compile_expr_rules(
-            rules,
-            &server_config.analyzers,
-            &server_config.modifiers,
-            old_ruleset.engine.clone(),
-        );
-        server_config.rule_set = Some(Arc::new(new_ruleset));
-    } else {
-        let rhai_engine = Arc::new(rhai::Engine::new());
-        let ruleset = nt_ruleset::expr_rule::compile_expr_rules(
-            rules,
-            &server_config.analyzers,
-            &server_config.modifiers,
-            rhai_engine,
-        );
-        server_config.rule_set = Some(Arc::new(ruleset));
-    }
+    println!("Saved rules: {:?}", rules);
+    let rhai_engine = Arc::new(rhai::Engine::new());
+    let ruleset = nt_ruleset::expr_rule::compile_expr_rules(
+        rules,
+        &server_config.analyzers,
+        &server_config.modifiers,
+        rhai_engine,
+    );
+    server_config.rule_set = Some(Arc::new(ruleset));
 }
