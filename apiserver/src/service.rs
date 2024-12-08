@@ -88,13 +88,32 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
+    let shutdown_tx_clone = shutdown_tx.clone();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("Shutting down gracefully...");
+        shutdown_tx_clone.send(()).await.unwrap();
+    });
+
+    let (_config_tx, config_rx) = tokio::sync::watch::channel(());
+
+    info!("Engine started");
 
     server_config.shutdown = Some(shutdown_tx);
 
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move { engine.run(shutdown_rx).await });
-    server_config.engine_handler = Some(engine_handle);
-    info!("Engine started");
+    let engine_handle = tokio::spawn(async move {
+        engine
+            .run(
+                shutdown_rx,
+                config_rx,
+                "None".to_owned(),
+                Vec::new(),
+                Vec::new(),
+            )
+            .await
+    });
+    drop(engine_handle);
     Ok("Engine started".to_string())
 }
 

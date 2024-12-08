@@ -1,8 +1,9 @@
+use std::path::Path;
 use std::{sync::Arc, time::Duration};
 
 use clap::Parser;
 use cmd::config::load_config_from_file;
-use tokio::sync::Mutex;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, error, info};
 
 use nt_engine::Engine;
@@ -98,9 +99,8 @@ async fn main() {
         io: io_impl,
         ruleset: Arc::new(rs),
     };
-    let engine = Arc::new(Mutex::new(
-        nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine"),
-    ));
+    let mut engine =
+        nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
 
     debug!("Setting up the ctrl_c handler");
     let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
@@ -112,30 +112,53 @@ async fn main() {
         shutdown_tx_clone.send(()).await.unwrap();
     });
 
-    // Handle SIGHUP for config reload
-    debug!("Setting up the SIGHUB handler for config reloading...");
-    let ruleset_file = cli.ruleset_file.clone();
-    let engine_clone = engine.clone();
-    tokio::spawn(async move {
-        let mut signal =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).unwrap();
-        loop {
-            signal.recv().await;
-            info!("Reloading rules...");
+    // Handle file monitoring for config reload
+    let (config_tx, config_rx) = tokio::sync::watch::channel(());
 
-            match read_expr_rules_from_file(&ruleset_file).await {
-                Ok(raw_rs) => {
-                    let new_engine = Arc::new(rhai::Engine::new());
-                    let rs = nt_ruleset::expr_rule::compile_expr_rules(
-                        raw_rs, &analyzers, &modifiers, new_engine,
-                    );
-                    if let Err(e) = engine_clone.lock().await.update_ruleset(Arc::new(rs)).await {
-                        error!("Failed to update ruleset: {}", e);
-                    } else {
-                        info!("Rules reloaded successfully");
+    tokio::spawn({
+        let ruleset_file = cli.ruleset_file.clone();
+        let config_tx = config_tx.clone();
+
+        async move {
+            let mut watcher = match RecommendedWatcher::new(
+                move |res: Result<notify::Event, notify::Error>| match res {
+                    Ok(event) => {
+                        debug!("File change event: {:?}", event);
+                        // Watch for any write events
+                        if matches!(event.kind, notify::EventKind::Modify(_) | notify::EventKind::Create(_)) {
+                            if let Err(e) = config_tx.send(()) {
+                                error!("Failed to send config reload notification: {:?}", e);
+                            } else {
+                                debug!("Sent config reload notification");
+                            }
+                        }
                     }
+                    Err(e) => error!("Watch error: {:?}", e),
+                },
+                notify::Config::default()
+                    .with_poll_interval(Duration::from_secs(1))
+                    .with_compare_contents(false), // Disable content comparison
+            ) {
+                Ok(watcher) => watcher,
+                Err(e) => {
+                    error!("Failed to create file watcher: {:?}", e);
+                    return;
                 }
-                Err(e) => error!("Failed to load rules: {}", e),
+            };
+
+            info!("Starting file watcher for {}", &ruleset_file);
+            if let Err(e) = watcher.watch(Path::new(&ruleset_file), RecursiveMode::NonRecursive) {
+                error!("Failed to watch ruleset file: {:?}", e);
+                return;
+            }
+
+            // Keep the watcher alive and healthy
+            loop {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                // Verify watcher is still working
+                if let Err(e) = watcher.watch(Path::new(&ruleset_file), RecursiveMode::NonRecursive) {
+                    error!("Watcher verification failed, attempting to recover: {:?}", e);
+                }
             }
         }
     });
@@ -143,7 +166,17 @@ async fn main() {
     info!("Engine started");
 
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move { engine.lock().await.run(shutdown_rx).await });
+    let engine_handle = tokio::spawn(async move {
+        engine
+            .run(
+                shutdown_rx,
+                config_rx,
+                cli.ruleset_file.clone(),
+                analyzers,
+                modifiers,
+            )
+            .await
+    });
 
     // Cleanup and shutdown
     let _ = engine_handle.await.unwrap();

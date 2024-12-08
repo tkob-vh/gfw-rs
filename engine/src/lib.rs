@@ -10,24 +10,20 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::mpsc::Receiver;
-
 use nt_io::PacketIO;
 use nt_ruleset::Ruleset;
 
 /// Engine is the main engine for gfw-rs.
 #[async_trait::async_trait]
 pub trait Engine {
-    /// UpdateRuleset updates the ruleset.
-    async fn update_ruleset(
-        &mut self,
-        new_ruleset: Arc<dyn Ruleset>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>>;
-
     /// Run runs the engine, until an error occurs or the context is cancelled.
     async fn run(
         &mut self,
-        mut shutdone_rx: Receiver<()>,
+        mut shutdone_rx: tokio::sync::mpsc::Receiver<()>,
+        mut config_rx: tokio::sync::watch::Receiver<()>,
+        ruleset_file: String,
+        analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
+        modifier: Vec<Arc<dyn nt_modifier::Modifier>>,
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
 

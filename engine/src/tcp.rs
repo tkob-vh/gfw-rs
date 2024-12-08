@@ -176,7 +176,7 @@ impl TCPStreamFactory {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct TCPStreamManager {
-    factory: TCPStreamFactory,
+    factory: Arc<RwLock<TCPStreamFactory>>,
     streams: LruCache<u32, TCPStreamValue>,
     /// The following two variables is not used for now.
     max_buffered_pages_total: u32,
@@ -192,7 +192,7 @@ impl TCPStreamManager {
     /// * `max_buffered_pages_total` -
     /// * `max_buffered_pages_per_conn` -
     pub fn new(
-        factory: TCPStreamFactory,
+        factory: Arc<RwLock<TCPStreamFactory>>,
         max_buffered_pages_total: u32,
         max_buffered_pages_per_conn: u32,
     ) -> Self {
@@ -232,7 +232,12 @@ impl TCPStreamManager {
             if !matches {
                 debug!("Stream ID exists but different flow - create a new stream.");
                 value.stream.close_active_entries();
-                let new_stream = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await;
+                let new_stream = self
+                    .factory
+                    .write()
+                    .await
+                    .new_stream(src_ip, dst_ip, tcp_packet)
+                    .await;
                 if let Some(stream) = new_stream {
                     let value = TCPStreamValue {
                         stream,
@@ -249,7 +254,13 @@ impl TCPStreamManager {
             }
         } else {
             debug!("Stream ID not exists, create a new stream.");
-            if let Some(stream) = self.factory.new_stream(src_ip, dst_ip, tcp_packet).await {
+            if let Some(stream) = self
+                .factory
+                .write()
+                .await
+                .new_stream(src_ip, dst_ip, tcp_packet)
+                .await
+            {
                 let value = TCPStreamValue {
                     stream,
                     src_ip,

@@ -43,7 +43,7 @@ pub async fn read_expr_rules_from_file(
 }
 
 /// The internal, compiled representation of an expression rule.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompiledExprRule {
     pub name: String,
     pub action: Action,
@@ -51,7 +51,7 @@ pub struct CompiledExprRule {
     pub ast: rhai::AST,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExprRuleset {
     pub engine: Arc<rhai::Engine>,
     pub rules: Vec<CompiledExprRule>,

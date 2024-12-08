@@ -6,10 +6,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use pnet::packet::{ipv4::Ipv4Packet, ipv6::Ipv6Packet, Packet};
-use tokio::{
-    runtime::Handle,
-    sync::mpsc::{self, Receiver},
-};
+use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -26,8 +23,6 @@ pub struct Engine {
 
     /// The senders which send tasks to the workers.
     worker_senders: Vec<mpsc::Sender<WorkerPacket>>,
-
-    runtime: Handle,
 }
 
 impl Engine {
@@ -71,33 +66,12 @@ impl Engine {
             io: config.io,
             workers,
             worker_senders,
-            runtime: Handle::current(),
         })
     }
 }
 
 #[async_trait::async_trait]
 impl crate::Engine for Engine {
-    /// Update the ruleset for all the workers.
-    ///
-    /// # Arguments
-    ///
-    /// * `new_ruleset` - A new ruleset to be applied to the workers.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), Box<dyn Error + Send + Sync>>` - Returns `Ok(())` on success, or an error on failure.
-    async fn update_ruleset(
-        &mut self,
-        new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        for worker in &mut self.workers {
-            worker.update_ruleset(new_ruleset.clone()).await?
-        }
-
-        Ok(())
-    }
-
     /// Run the engine, starting all workers and handling packets.
     ///
     /// # Returns
@@ -105,16 +79,24 @@ impl crate::Engine for Engine {
     /// * `Result<(), Box<dyn Error + Send + Sync>>` - Returns `Ok(())` on success, or an error on failure.
     async fn run(
         &mut self,
-        mut shutdown_rx: Receiver<()>,
+        mut shutdown_rx: tokio::sync::mpsc::Receiver<()>,
+        mut config_rx: tokio::sync::watch::Receiver<()>,
+        ruleset_file: String,
+        analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
+        modifiers: Vec<Arc<dyn nt_modifier::Modifier>>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
+        let (rs_tx, mut _rs_rx) = tokio::sync::broadcast::channel(self.workers.len());
 
         debug!("Start workers.");
         for mut worker in std::mem::take(&mut self.workers) {
             let err_tx = err_tx.clone();
-            self.runtime.spawn(async move {
-                if let Err(e) = worker.run().await {
-                    let _ = err_tx.send(e).await;
+            tokio::spawn({
+                let rs_rx = rs_tx.subscribe();
+                async move {
+                    if let Err(e) = worker.run(rs_rx).await {
+                        let _ = err_tx.send(e).await;
+                    }
                 }
             });
         }
@@ -145,15 +127,38 @@ impl crate::Engine for Engine {
         // Register packet handler
         self.io.register(Box::new(packet_handler)).await?;
 
-        // Wait for either error or shutdown signal (similar to Go's select)
-        tokio::select! {
-            Some(err) = err_rx.recv() => {
-                info!("Encountered error: {}", &err);
-                Err(err)
-            }
-            _ = shutdown_rx.recv() => {
-                info!("Received ctrl_c signal");
-                Ok(())
+        // Wait for either error or shutdown signal or ruleset reload.
+        loop {
+            tokio::select! {
+                Some(err) = err_rx.recv() => {
+                    info!("Encountered error: {}", &err);
+                    return Err(err);
+                }
+                _ = shutdown_rx.recv() => {
+                    info!("Received ctrl_c signal");
+                    return Ok(());
+                }
+                _ = config_rx.changed() => {
+                    info!("Configuration changed, updating the ruleset...");
+                    match nt_ruleset::expr_rule::read_expr_rules_from_file(&ruleset_file).await {
+                        Ok(raw_rs) => {
+
+                            debug!("rules: {:?}", raw_rs);
+                            let new_engine = Arc::new(rhai::Engine::new());
+                            let rs = nt_ruleset::expr_rule::compile_expr_rules(
+                                raw_rs,
+                                &analyzers,
+                                &modifiers,
+                                new_engine,
+                            );
+
+                            _ = rs_tx.send(rs).unwrap();
+
+                        }
+                        Err(e) => error!("Failed to load rules: {}", e),
+                    }
+                }
+
             }
         }
     }
