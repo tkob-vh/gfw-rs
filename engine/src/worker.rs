@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::BytesMut;
+use nt_ruleset::expr_rule::ExprRuleset;
 use pnet::packet::{
     ip::IpNextHeaderProtocols, ipv4::MutableIpv4Packet, ipv6::MutableIpv6Packet,
     tcp::MutableTcpPacket, udp::MutableUdpPacket, MutablePacket, Packet,
@@ -16,7 +17,7 @@ use tokio::{
     sync::{mpsc, RwLock},
     time,
 };
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     tcp::{TCPContext, TCPStreamFactory, TCPStreamManager, TCPVerdict},
@@ -51,11 +52,11 @@ pub struct Worker {
 
     packet_rx: mpsc::Receiver<WorkerPacket>,
 
-    tcp_stream_factory: TCPStreamFactory,
+    tcp_stream_factory: Arc<RwLock<TCPStreamFactory>>,
     tcp_stream_manager: TCPStreamManager,
     tcp_timeout: Duration,
 
-    udp_stream_factory: UDPStreamFactory,
+    udp_stream_factory: Arc<RwLock<UDPStreamFactory>>,
     udp_stream_manager: UDPStreamManager,
 
     mod_serialize_buffer: BytesMut,
@@ -84,20 +85,26 @@ impl Worker {
         let node =
             SnowflakeIdGenerator::with_epoch(config.id as i32, config.id as i32, discord_epoch);
 
-        let tcp_stream_factory =
-            TCPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
+        let tcp_factory = Arc::new(RwLock::new(TCPStreamFactory::new(
+            config.id,
+            node,
+            RwLock::new(config.ruleset.clone()),
+        )));
 
-        let tcp_stream_manager = TCPStreamManager::new(
-            tcp_stream_factory,
+        let tcp_manager = TCPStreamManager::new(
+            tcp_factory.clone(),
             config.tcp_max_buffered_pages_total,
             config.tcp_max_buffered_pages_per_conn,
         );
 
-        let udp_stream_factory =
-            UDPStreamFactory::new(config.id, node, RwLock::new(config.ruleset.clone()));
+        let udp_factory = Arc::new(RwLock::new(UDPStreamFactory::new(
+            config.id,
+            node,
+            config.ruleset.clone(),
+        )));
 
-        let udp_stream_manager =
-            UDPStreamManager::new(udp_stream_factory, config.udp_max_streams).unwrap();
+        let udp_manager =
+            UDPStreamManager::new(udp_factory.clone(), config.udp_max_streams).unwrap();
 
         let (tx, rx) = mpsc::channel(config.chan_size as usize);
 
@@ -106,20 +113,12 @@ impl Worker {
                 id: config.id,
                 packet_rx: rx,
 
-                tcp_stream_factory: TCPStreamFactory::new(
-                    config.id,
-                    node,
-                    RwLock::new(config.ruleset.clone()),
-                ),
-                tcp_stream_manager,
+                tcp_stream_factory: tcp_factory,
+                tcp_stream_manager: tcp_manager,
                 tcp_timeout: config.tcp_timeout,
 
-                udp_stream_manager,
-                udp_stream_factory: UDPStreamFactory::new(
-                    config.id,
-                    node,
-                    RwLock::new(config.ruleset.clone()),
-                ),
+                udp_stream_factory: udp_factory,
+                udp_stream_manager: udp_manager,
                 mod_serialize_buffer: BytesMut::new(),
             },
             tx,
@@ -131,7 +130,10 @@ impl Worker {
     /// # Returns
     ///
     /// A `Result` indicating success or failure.
-    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn run(
+        &mut self,
+        mut rs_rx: tokio::sync::broadcast::Receiver<ExprRuleset>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         debug!("Worker started: id = {}", self.id);
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
 
@@ -145,6 +147,14 @@ impl Worker {
                 }
                 _ = tcp_flush_interval.tick() => {
                     self.flush_tcp(self.tcp_timeout).await;
+                }
+                Ok(rs) = rs_rx.recv() => {
+
+                    match self.update_ruleset(Arc::new(rs)).await {
+                        Ok(_) => info!("Rules reloaded successfully"),
+                        Err(e) => error!("Failed to update ruleset: {}", e),
+                    }
+
                 }
                 else => break,
 
@@ -167,13 +177,13 @@ impl Worker {
         &mut self,
         new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.tcp_stream_factory
-            .update_ruleset(new_ruleset.clone())
-            .await?;
+        let factory = self.tcp_stream_factory.write().await;
+        factory.update_ruleset(new_ruleset.clone()).await?;
 
-        self.udp_stream_factory
-            .update_ruleset(new_ruleset.clone())
-            .await
+        let mut factory = self.udp_stream_factory.write().await;
+        factory.update_ruleset(new_ruleset.clone()).await?;
+
+        Ok(())
     }
 
     /// Handles an incoming packet, determining its type (TCP/UDP) and processing it accordingly.

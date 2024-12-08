@@ -52,7 +52,7 @@ pub struct UDPStreamFactory {
     node: snowflake::SnowflakeIdGenerator,
 
     /// The ruleset for the tcp stream entries.
-    ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
+    ruleset: Arc<RwLock<Arc<dyn nt_ruleset::Ruleset>>>,
 }
 
 impl UDPStreamFactory {
@@ -66,12 +66,12 @@ impl UDPStreamFactory {
     pub fn new(
         worker_id: u32,
         node: snowflake::SnowflakeIdGenerator,
-        ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
+        ruleset: Arc<dyn nt_ruleset::Ruleset>,
     ) -> Self {
         Self {
             worker_id,
             node,
-            ruleset,
+            ruleset: Arc::new(RwLock::new(ruleset)),
         }
     }
 
@@ -170,7 +170,7 @@ impl UDPStreamFactory {
 /// Manager for UDP streams.
 #[derive(Debug)]
 pub struct UDPStreamManager {
-    factory: UDPStreamFactory,
+    factory: Arc<RwLock<UDPStreamFactory>>,
     streams: LruCache<u32, UDPStreamValue>,
 }
 
@@ -185,7 +185,7 @@ impl UDPStreamManager {
     /// # Returns
     ///
     /// An option containing the new UDPStreamManager if successful.
-    pub fn new(factory: UDPStreamFactory, max_streams: u32) -> Option<Self> {
+    pub fn new(factory: Arc<RwLock<UDPStreamFactory>>, max_streams: u32) -> Option<Self> {
         Some(UDPStreamManager {
             factory,
             streams: LruCache::new(
@@ -223,7 +223,12 @@ impl UDPStreamManager {
             if !matches {
                 debug!("Stream ID exists but different flow - create a new stream.");
                 value.stream.close();
-                let new_stream = self.factory.new_stream(src_ip, dst_ip, udp_packet).await;
+                let new_stream = self
+                    .factory
+                    .write()
+                    .await
+                    .new_stream(src_ip, dst_ip, udp_packet)
+                    .await;
                 if let Some(stream) = new_stream {
                     let value = UDPStreamValue {
                         stream,
@@ -239,7 +244,13 @@ impl UDPStreamManager {
             }
         } else {
             debug!("Stream ID not exists, create a new stream.");
-            if let Some(stream) = self.factory.new_stream(src_ip, dst_ip, udp_packet).await {
+            if let Some(stream) = self
+                .factory
+                .write()
+                .await
+                .new_stream(src_ip, dst_ip, udp_packet)
+                .await
+            {
                 let value = UDPStreamValue {
                     stream,
                     src_ip,
@@ -354,7 +365,7 @@ pub struct UDPStream {
     virgin: bool,
 
     /// The ruleset for the udp stream.
-    ruleset: Arc<dyn nt_ruleset::Ruleset>,
+    pub ruleset: Arc<dyn nt_ruleset::Ruleset>,
 
     /// The unprocessed stream entries.
     active_entries: Vec<UDPStreamEntry>,
