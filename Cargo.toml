@@ -14,7 +14,7 @@ members = [
 [workspace.dependencies]
 axum = "0.7.7"
 tokio = { version = "1.41.1", features = ["full"] }
-async_trait = { version = "0.1" }
+tokio-util = { version = "0.7.13", features = ["rt"] }
 tower = "0.5.1"
 clap = { version = "4.5.20", features = ["derive"] }
 tracing = "0.1"
@@ -30,7 +30,6 @@ snafu = "0.8.5"
 
 ## workspace members
 nt-analyzer = { package = "analyzer", path = 'analyzer' }
-nt-apiserver = { package = "apiserver", path = 'apiserver' }
 nt-cmd = { package = "cmd", path = 'cmd' }
 nt-engine = { package = "engine", path = 'engine' }
 nt-io = { package = "io", path = 'io' }

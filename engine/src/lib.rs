@@ -19,7 +19,7 @@ pub trait Engine {
     /// Run runs the engine, until an error occurs or the context is cancelled.
     async fn run(
         &mut self,
-        mut shutdone_rx: tokio::sync::mpsc::Receiver<()>,
+        program_cancellation_token: tokio_util::sync::CancellationToken,
         mut config_rx: tokio::sync::watch::Receiver<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,

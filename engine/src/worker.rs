@@ -133,6 +133,7 @@ impl Worker {
     pub async fn run(
         &mut self,
         mut rs_rx: tokio::sync::broadcast::Receiver<ExprRuleset>,
+        engine_cancellation_token: tokio_util::sync::CancellationToken,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         debug!("Worker started: id = {}", self.id);
         let mut tcp_flush_interval = time::interval(TCP_FLUSH_INTERVAL);
@@ -147,6 +148,10 @@ impl Worker {
                 }
                 _ = tcp_flush_interval.tick() => {
                     self.flush_tcp(self.tcp_timeout).await;
+                }
+                _ = engine_cancellation_token.cancelled() => {
+                    debug!("Shutdown the gfw workers...");
+                    break;
                 }
                 Ok(rs) = rs_rx.recv() => {
 

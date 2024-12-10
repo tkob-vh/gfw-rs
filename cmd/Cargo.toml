@@ -18,3 +18,4 @@ nt-analyzer.workspace = true
 nt-modifier.workspace = true
 rhai.workspace = true
 notify = "7.0.0"
+tokio-util.workspace = true

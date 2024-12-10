@@ -102,30 +102,36 @@ async fn main() {
     let mut engine =
         nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
 
-    debug!("Setting up the ctrl_c handler");
-    let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
+    let tracker = tokio_util::task::TaskTracker::new();
+    let program_cancellation_token = tokio_util::sync::CancellationToken::new();
 
-    let shutdown_tx_clone = shutdown_tx.clone();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        info!("Shutting down...");
-        shutdown_tx_clone.send(()).await.unwrap();
+    debug!("Setting up the ctrl_c handler");
+    tracker.spawn({
+        let program_cancellation_token = program_cancellation_token.clone();
+        async move {
+            tokio::signal::ctrl_c().await.unwrap();
+            info!("Received ctrl_c, shutting down the program...");
+            program_cancellation_token.cancel();
+        }
     });
 
     // Handle file monitoring for config reload
     let (config_tx, config_rx) = tokio::sync::watch::channel(());
 
-    tokio::spawn({
+    tracker.spawn({
         let ruleset_file = cli.ruleset_file.clone();
         let config_tx = config_tx.clone();
+        let program_cancellation_token = program_cancellation_token.clone();
 
         async move {
             let mut watcher = match RecommendedWatcher::new(
                 move |res: Result<notify::Event, notify::Error>| match res {
                     Ok(event) => {
                         debug!("File change event: {:?}", event);
-                        // Watch for any write events
-                        if matches!(event.kind, notify::EventKind::Modify(_) | notify::EventKind::Create(_)) {
+                        if matches!(
+                            event.kind,
+                            notify::EventKind::Modify(_) | notify::EventKind::Create(_)
+                        ) {
                             if let Err(e) = config_tx.send(()) {
                                 error!("Failed to send config reload notification: {:?}", e);
                             } else {
@@ -137,7 +143,7 @@ async fn main() {
                 },
                 notify::Config::default()
                     .with_poll_interval(Duration::from_secs(1))
-                    .with_compare_contents(false), // Disable content comparison
+                    .with_compare_contents(false),
             ) {
                 Ok(watcher) => watcher,
                 Err(e) => {
@@ -152,12 +158,13 @@ async fn main() {
                 return;
             }
 
-            // Keep the watcher alive and healthy
+            // Keep watcher alive until shutdown
             loop {
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                // Verify watcher is still working
-                if let Err(e) = watcher.watch(Path::new(&ruleset_file), RecursiveMode::NonRecursive) {
-                    error!("Watcher verification failed, attempting to recover: {:?}", e);
+                tokio::select! {
+                    _ = program_cancellation_token.cancelled() => {
+                        info!("Shutting down ruleset file watcher");
+                        break;
+                    }
                 }
             }
         }
@@ -166,19 +173,22 @@ async fn main() {
     info!("Engine started");
 
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move {
-        engine
-            .run(
-                shutdown_rx,
-                config_rx,
-                cli.ruleset_file.clone(),
-                analyzers,
-                modifiers,
-            )
-            .await
+    let _engine_handle = tracker.spawn({
+        let program_cancellation_token = program_cancellation_token.clone();
+        async move {
+            engine
+                .run(
+                    program_cancellation_token,
+                    config_rx,
+                    cli.ruleset_file.clone(),
+                    analyzers,
+                    modifiers,
+                )
+                .await
+        }
     });
 
-    // Cleanup and shutdown
-    let _ = engine_handle.await.unwrap();
-    info!("Engine stopped");
+    tracker.close();
+    tracker.wait().await;
+    info!("Program stopped");
 }
