@@ -32,7 +32,7 @@ async fn main() {
         config: Arc::new(nt_cmd::config::CliConfig::default()),
         io_impl: None,
         rule_set: None,
-        shutdown: None,
+        engine_cancellation_token: tokio_util::sync::CancellationToken::default(),
         engine_handler: None,
     }))));
 
