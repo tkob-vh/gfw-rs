@@ -49,9 +49,10 @@ pub async fn create_router() -> Router {
 
 async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
-    if server_config.shutdown.is_some() {
+    if !server_config.engine_cancellation_token.is_cancelled() {
         return Ok("Engine already started".to_string());
     }
+    server_config.engine_cancellation_token = tokio_util::sync::CancellationToken::new();
 
     if server_config.io_impl.is_none() {
         info!("Setup IO for nfqueue...");
@@ -87,48 +88,48 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     };
     let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
-    let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
-    let shutdown_tx_clone = shutdown_tx.clone();
-    tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.unwrap();
-        info!("Shutting down gracefully...");
-        shutdown_tx_clone.send(()).await.unwrap();
+    let program_cancellation_token = tokio_util::sync::CancellationToken::new();
+
+    tokio::spawn({
+        let program_cancellation_token = program_cancellation_token.clone();
+        async move {
+            tokio::signal::ctrl_c().await.unwrap();
+            info!("Received ctrlc, shutdown the program...");
+            program_cancellation_token.cancel();
+        }
     });
 
     let (_config_tx, config_rx) = tokio::sync::watch::channel(());
 
     info!("Engine started");
 
-    server_config.shutdown = Some(shutdown_tx);
-
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn(async move {
-        engine
-            .run(
-                shutdown_rx,
-                config_rx,
-                "None".to_owned(),
-                Vec::new(),
-                Vec::new(),
-            )
-            .await
+    let engine_handle = tokio::spawn({
+        let program_cancellation_token = program_cancellation_token.clone();
+        let engine_cancellation_token = server_config.engine_cancellation_token.clone();
+        async move {
+            engine
+                .run(
+                    program_cancellation_token,
+                    engine_cancellation_token,
+                    config_rx,
+                    "None".to_owned(),
+                    Vec::new(),
+                    Vec::new(),
+                )
+                .await
+        }
     });
     drop(engine_handle);
     Ok("Engine started".to_string())
 }
 
 async fn stop_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
-    let mut server_config = server.write().await;
-    if server_config.shutdown.is_none() {
+    let server_config = server.write().await;
+    if server_config.engine_cancellation_token.is_cancelled() {
         return Ok("Engine Has Not Started Yet".to_string());
     }
-    let shutdown = server_config.shutdown.take().unwrap();
-    shutdown
-        .send(())
-        .await
-        .map_err(|_| ServiceError::ShutdownSignal)?;
-    let engine_handler = server_config.engine_handler.take().unwrap();
-    let _ = engine_handler.await.unwrap();
+    server_config.engine_cancellation_token.cancel();
     Ok("Engine stopped".to_string())
 }
 
