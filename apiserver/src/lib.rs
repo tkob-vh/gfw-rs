@@ -5,7 +5,7 @@ use nt_modifier::Modifier;
 use nt_ruleset::expr_rule::ExprRuleset;
 use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc::Sender, RwLock};
+use tokio::sync::{broadcast, RwLock};
 use tracing_subscriber::fmt::MakeWriter;
 
 pub mod file;
@@ -62,6 +62,7 @@ pub struct ServerConfig {
     pub io_impl: Option<Arc<dyn PacketIO>>,
 
     /// shutdown also stand for the engine is running.
-    pub shutdown: Option<Sender<()>>,
+    //pub shutdown: Option<Sender<()>>,
+    pub engine_cancellation_token: tokio_util::sync::CancellationToken,
     pub engine_handler: Option<tokio::task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
 }
