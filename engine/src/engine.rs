@@ -80,6 +80,7 @@ impl crate::Engine for Engine {
     async fn run(
         &mut self,
         program_cancellation_token: tokio_util::sync::CancellationToken,
+        engine_cancellation_token: tokio_util::sync::CancellationToken,
         mut config_rx: tokio::sync::watch::Receiver<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
@@ -87,7 +88,6 @@ impl crate::Engine for Engine {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
         let (rs_tx, mut _rs_rx) = tokio::sync::broadcast::channel(self.workers.len());
-        let engine_cancellation_token = tokio_util::sync::CancellationToken::new();
 
         debug!("Start workers.");
         for mut worker in std::mem::take(&mut self.workers) {

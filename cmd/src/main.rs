@@ -104,6 +104,7 @@ async fn main() {
 
     let tracker = tokio_util::task::TaskTracker::new();
     let program_cancellation_token = tokio_util::sync::CancellationToken::new();
+    let engine_cancellation_token = tokio_util::sync::CancellationToken::new();
 
     debug!("Setting up the ctrl_c handler");
     tracker.spawn({
@@ -158,12 +159,18 @@ async fn main() {
                 return;
             }
 
-            // Keep watcher alive until shutdown
+            // Keep the watcher alive and handle cancellation
             loop {
                 tokio::select! {
                     _ = program_cancellation_token.cancelled() => {
                         info!("Shutting down ruleset file watcher");
                         break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                        // Verify watcher is still working
+                        if let Err(e) = watcher.watch(Path::new(&ruleset_file), RecursiveMode::NonRecursive) {
+                            error!("Watcher verification failed, attempting to recover: {:?}", e);
+                        }
                     }
                 }
             }
@@ -179,6 +186,7 @@ async fn main() {
             engine
                 .run(
                     program_cancellation_token,
+                    engine_cancellation_token,
                     config_rx,
                     cli.ruleset_file.clone(),
                     analyzers,
