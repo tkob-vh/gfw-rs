@@ -20,6 +20,7 @@ pub trait Engine {
     async fn run(
         &mut self,
         program_cancellation_token: tokio_util::sync::CancellationToken,
+        engine_cancellation_token: tokio_util::sync::CancellationToken,
         mut config_rx: tokio::sync::watch::Receiver<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
