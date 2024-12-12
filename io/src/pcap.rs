@@ -192,11 +192,6 @@ impl PacketIO for PcapPacketIO {
         Ok(TcpStream::connect(addr).await.unwrap())
     }
 
-    //async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-    //    // File will be closed when the Arc/Mutex is dropped
-    //    Ok(())
-    //}
-
     async fn set_cancel_func(
         &self,
         cancel_func: Box<dyn Fn() + Send + Sync>,
@@ -205,6 +200,8 @@ impl PacketIO for PcapPacketIO {
         *func = Some(cancel_func);
         Ok(())
     }
+
+    async fn close(&self) {}
 }
 
 /// Struct representing a pcap packet.

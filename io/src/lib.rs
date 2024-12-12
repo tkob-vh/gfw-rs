@@ -124,6 +124,8 @@ pub trait PacketIO: DowncastSync + Send + Sync {
         &self,
         cancel_func: Box<dyn Fn() + Send + Sync>,
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
+
+    async fn close(&self);
 }
 
 impl_downcast!(sync PacketIO);

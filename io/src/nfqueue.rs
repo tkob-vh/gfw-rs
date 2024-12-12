@@ -652,6 +652,17 @@ impl PacketIO for NFQueuePacketIO {
         // NFQueue doesn't need cancel functionality
         Ok(())
     }
+
+    async fn close(&self) {
+        let mut rule_set = self.rule_set.lock().await;
+        if *rule_set {
+            self.setup_nft(true)
+                .await
+                .expect("Failed to delete nftables");
+
+            *rule_set = false;
+        }
+    }
 }
 
 struct NFQueuePacket {
