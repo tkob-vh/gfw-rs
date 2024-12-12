@@ -129,6 +129,7 @@ impl crate::Engine for Engine {
         // Register packet handler
         self.io.register(Box::new(packet_handler)).await?;
 
+        let io = self.io.clone();
         // Wait for either error or shutdown signal or ruleset reload.
         loop {
             tokio::select! {
@@ -139,6 +140,7 @@ impl crate::Engine for Engine {
                 _ = program_cancellation_token.cancelled() => {
                     info!("Shutdown the gfw engine...");
                     engine_cancellation_token.cancel();
+                    io.close().await;
                     return Ok(());
                 }
                 _ = config_rx.changed() => {
