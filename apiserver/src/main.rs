@@ -32,7 +32,12 @@ async fn main() {
         config: Arc::new(nt_cmd::config::CliConfig::default()),
         io_impl: None,
         rule_set: None,
-        engine_cancellation_token: tokio_util::sync::CancellationToken::default(),
+        engine_cancellation_token: {
+            let token = tokio_util::sync::CancellationToken::default();
+            token.cancel();
+            token
+        },
+        program_cancellation_token: tokio_util::sync::CancellationToken::new(),
         engine_handler: None,
     }))));
 

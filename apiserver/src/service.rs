@@ -88,10 +88,8 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     };
     let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
-    let program_cancellation_token = tokio_util::sync::CancellationToken::new();
-
     tokio::spawn({
-        let program_cancellation_token = program_cancellation_token.clone();
+        let program_cancellation_token = server_config.program_cancellation_token.clone();
         async move {
             tokio::signal::ctrl_c().await.unwrap();
             info!("Received ctrlc, shutdown the program...");
@@ -105,8 +103,10 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
 
     // Run the engine until shutdown signal
     let engine_handle = tokio::spawn({
-        let program_cancellation_token = program_cancellation_token.clone();
+        let program_cancellation_token = server_config.program_cancellation_token.clone();
         let engine_cancellation_token = server_config.engine_cancellation_token.clone();
+        let analyzers = server_config.analyzers.clone();
+        let modifiers = server_config.modifiers.clone();
         async move {
             engine
                 .run(
@@ -114,8 +114,8 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
                     engine_cancellation_token,
                     config_rx,
                     "None".to_owned(),
-                    Vec::new(),
-                    Vec::new(),
+                    analyzers,
+                    modifiers,
                 )
                 .await
         }
