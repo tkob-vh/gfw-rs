@@ -64,5 +64,6 @@ pub struct ServerConfig {
     /// shutdown also stand for the engine is running.
     //pub shutdown: Option<Sender<()>>,
     pub engine_cancellation_token: tokio_util::sync::CancellationToken,
+    pub program_cancellation_token: tokio_util::sync::CancellationToken,
     pub engine_handler: Option<tokio::task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
 }
