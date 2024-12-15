@@ -17,5 +17,15 @@ Rewrite [OpenGFW](https://github.com/apernet/OpenGFW) in Rust.
 See [this issue](https://github.com/tkob-vh/net-guardian/issues/22)
 
 ##  Requriements
+* Make sure you have cargo installed on your system.
 * The kernel modules about the connection tracking system should be loaded.
 * Need root permission to modify the nftables/iptables and `conntrack` system.
+
+## How to run
+For now, you can execute
+```
+cargo run --bin cmd -- --config-file config.yaml --ruleset-file rules.yaml --log-level debug
+```
+to run this program.
+
+For the frontend, we are currently refactoring it so it is not stable now.
