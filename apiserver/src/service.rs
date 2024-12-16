@@ -98,20 +98,20 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     });
 
     let (_config_tx, config_rx) = tokio::sync::watch::channel(());
+    let (service_tx, _service_rx) = tokio::sync::watch::channel(true);
 
     info!("Engine started");
 
     // Run the engine until shutdown signal
     let engine_handle = tokio::spawn({
         let program_cancellation_token = server_config.program_cancellation_token.clone();
-        let engine_cancellation_token = server_config.engine_cancellation_token.clone();
         let analyzers = server_config.analyzers.clone();
         let modifiers = server_config.modifiers.clone();
         async move {
             engine
                 .run(
                     program_cancellation_token,
-                    engine_cancellation_token,
+                    service_tx,
                     config_rx,
                     "None".to_owned(),
                     analyzers,

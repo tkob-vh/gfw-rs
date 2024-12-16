@@ -56,8 +56,19 @@ impl std::fmt::Debug for dyn Packet {
 
 /// The function to be called for each received packet.
 /// Return false to "unregister" and stop receiving packets.
-pub type PacketCallback =
-    Box<dyn Fn(Box<dyn Packet>, Option<Box<dyn Error + Send + Sync>>) -> bool + Send + Sync>;
+// pub type PacketCallback =
+//     Box<dyn Fn(Box<dyn Packet>, Option<Box<dyn Error + Send + Sync>>) -> bool + Send + Sync>;
+use std::future::Future;
+use std::pin::Pin;
+
+pub type PacketCallback = Box<
+    dyn Fn(
+            Box<dyn Packet>,
+            Option<Box<dyn Error + Send + Sync>>,
+        ) -> Pin<Box<dyn Future<Output = bool> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// Manage the packet io.
 #[async_trait::async_trait]
@@ -71,7 +82,11 @@ pub trait PacketIO: DowncastSync + Send + Sync {
     /// # Returns
     ///
     /// * `Result<(), Box<dyn Error>>` - A result indicating success or failure.
-    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn register(
+        &self,
+        callback: PacketCallback,
+        service_rx: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
 
     /// Set the verdict for a packet. (Used in iptables/nftables)
     ///

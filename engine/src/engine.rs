@@ -80,7 +80,7 @@ impl crate::Engine for Engine {
     async fn run(
         &mut self,
         program_cancellation_token: tokio_util::sync::CancellationToken,
-        engine_cancellation_token: tokio_util::sync::CancellationToken,
+        service_tx: tokio::sync::watch::Sender<bool>,
         mut config_rx: tokio::sync::watch::Receiver<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
@@ -92,11 +92,11 @@ impl crate::Engine for Engine {
         debug!("Start workers.");
         for mut worker in std::mem::take(&mut self.workers) {
             let err_tx = err_tx.clone();
-            let engine_cancellation_token = engine_cancellation_token.clone();
+            let program_cancellation_token = program_cancellation_token.clone();
             tokio::spawn({
                 let rs_rx = rs_tx.subscribe();
                 async move {
-                    if let Err(e) = worker.run(rs_rx, engine_cancellation_token).await {
+                    if let Err(e) = worker.run(rs_rx, program_cancellation_token).await {
                         let _ = err_tx.send(e).await;
                     }
                 }
@@ -107,27 +107,27 @@ impl crate::Engine for Engine {
         let io = self.io.clone();
 
         debug!("Create packet handler");
-        let packet_handler = {
+
+        let packet_handler: nt_io::PacketCallback = Box::new(
             move |packet: Box<dyn nt_io::Packet>, err: Option<Box<dyn Error + Send + Sync>>| {
                 let worker_senders = worker_senders.clone();
                 let err_tx = err_tx.clone();
                 let io = io.clone();
 
-                let fut = async move {
+                Box::pin(async move {
                     if let Some(e) = err {
+                        error!("Encountered error");
                         let _ = err_tx.send(e).await;
                         return false;
                     }
                     Self::dispatch(packet, &worker_senders, io).await
-                };
-
-                tokio::spawn(fut);
-                true
-            }
-        };
+                })
+            },
+        );
 
         // Register packet handler
-        self.io.register(Box::new(packet_handler)).await?;
+        let service_rx = service_tx.subscribe();
+        self.io.register(packet_handler, service_rx).await?;
 
         let io = self.io.clone();
         // Wait for either error or shutdown signal or ruleset reload.
@@ -144,7 +144,7 @@ impl crate::Engine for Engine {
                     io.close().await;
                     return Ok(());
                 }
-                _ = config_rx.changed() => {
+                Ok(_) = config_rx.changed() => {
                     info!("Configuration changed, updating the ruleset...");
                     match nt_ruleset::expr_rule::read_expr_rules_from_file(&ruleset_file).await {
                         Ok(raw_rs) => {
