@@ -139,7 +139,8 @@ impl crate::Engine for Engine {
                 }
                 _ = program_cancellation_token.cancelled() => {
                     info!("Shutdown the gfw engine...");
-                    engine_cancellation_token.cancel();
+
+                    // Delete the nftables.
                     io.close().await;
                     return Ok(());
                 }
