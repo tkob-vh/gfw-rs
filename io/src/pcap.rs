@@ -106,7 +106,11 @@ impl PcapPacketIO {
 
 #[async_trait]
 impl PacketIO for PcapPacketIO {
-    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn register(
+        &self,
+        callback: PacketCallback,
+        _service_rx: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut capture = Capture::from_file(&self.config.pcap_file).unwrap();
         let time_offset = self.time_offset.clone();
         let config = self.config.clone();
@@ -157,7 +161,7 @@ impl PacketIO for PcapPacketIO {
                         data: packet.data[14..].to_vec(),
                     };
 
-                    if !callback(Box::new(pcap_packet), None) {
+                    if !callback(Box::new(pcap_packet), None).await {
                         break;
                     }
                 }
@@ -294,17 +298,25 @@ mod tests {
         };
         let pcap_io = PcapPacketIO::new(config).unwrap();
 
+        let (service_tx, service_rx) = tokio::sync::watch::channel(true);
+        drop(service_tx);
+
         let result = pcap_io
-            .register(Box::new(move |_, err| {
-                //let mut err_chan = err_chan_clone.blocking_lock();
-                if let Some(_) = err {
-                    //*err_chan = Some(e);
-                    return false;
-                }
-                // Simulate dispatching the packet
-                // e.dispatch(p)
-                true
-            }))
+            .register(
+                Box::new(move |_, err| {
+                    Box::pin(async move {
+                        //let mut err_chan = err_chan_clone.blocking_lock();
+                        if let Some(_) = err {
+                            //*err_chan = Some(e);
+                            return false;
+                        }
+                        // Simulate dispatching the packet
+                        // e.dispatch(p)
+                        true
+                    })
+                }),
+                service_rx,
+            )
             .await;
 
         assert!(result.is_ok());

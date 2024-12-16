@@ -102,9 +102,34 @@ async fn main() {
     let mut engine =
         nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
 
+    // Initialize the tokio task tracker.
     let tracker = tokio_util::task::TaskTracker::new();
+
+    // Initialize the program cancellation token.
     let program_cancellation_token = tokio_util::sync::CancellationToken::new();
-    let engine_cancellation_token = tokio_util::sync::CancellationToken::new();
+
+    // Initialize the service cancellation signal (only used in apiserver).
+    // `true` represents the active state, while `false` represents the inactive state.
+    let (service_tx, _service_rx) = tokio::sync::watch::channel(true);
+
+    tokio::spawn({
+        let service_tx = service_tx.clone();
+        let service_rx = service_tx.subscribe();
+        async move {
+            let mut signal =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).unwrap();
+            loop {
+                signal.recv().await;
+                if *service_rx.borrow() {
+                    info!("Stopping the service");
+                    let _ = service_tx.send(false);
+                } else {
+                    info!("Starting the service");
+                    let _ = service_tx.send(true);
+                }
+            }
+        }
+    });
 
     debug!("Setting up the ctrl_c handler");
     tracker.spawn({
@@ -182,11 +207,12 @@ async fn main() {
     // Run the engine until shutdown signal
     let _engine_handle = tracker.spawn({
         let program_cancellation_token = program_cancellation_token.clone();
+        let service_tx = service_tx.clone();
         async move {
             engine
                 .run(
                     program_cancellation_token,
-                    engine_cancellation_token,
+                    service_tx,
                     config_rx,
                     cli.ruleset_file.clone(),
                     analyzers,

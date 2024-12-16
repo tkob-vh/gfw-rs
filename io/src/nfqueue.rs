@@ -482,7 +482,11 @@ impl NFQueuePacketIO {
 
 #[async_trait::async_trait]
 impl PacketIO for NFQueuePacketIO {
-    async fn register(&self, callback: PacketCallback) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn register(
+        &self,
+        callback: PacketCallback,
+        service_rx: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         {
             let mut rule_set = self.rule_set.lock().await;
             if !*rule_set {
@@ -515,7 +519,7 @@ impl PacketIO for NFQueuePacketIO {
                         payload
                     );
 
-                    // Check the sanity of the attributes.
+                    // debug!("Check the sanity of the attributes.");
                     let (ok, verdict) =
                         NFQueuePacketIO::packet_attribute_sanity_check(local, payload, ct);
 
@@ -525,6 +529,10 @@ impl PacketIO for NFQueuePacketIO {
                             &verdict
                         );
                         msg.set_verdict(verdict);
+                        let _ = queue.lock().await.verdict(msg);
+                        continue;
+                    } else if !*service_rx.borrow() {
+                        msg.set_verdict(nfq::Verdict::Accept);
                         let _ = queue.lock().await.verdict(msg);
                         continue;
                     }
@@ -539,7 +547,7 @@ impl PacketIO for NFQueuePacketIO {
                         msg,
                     };
 
-                    if !callback(Box::new(packet), None) {
+                    if !callback(Box::new(packet), None).await {
                         break;
                     }
                 }
