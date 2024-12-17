@@ -97,7 +97,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
         }
     });
 
-    let (_config_tx, config_rx) = tokio::sync::watch::channel(());
+    let (config_tx, _config_rx) = tokio::sync::watch::channel(());
     let (service_tx, _service_rx) = tokio::sync::watch::channel(true);
 
     info!("Engine started");
@@ -112,7 +112,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
                 .run(
                     program_cancellation_token,
                     service_tx,
-                    config_rx,
+                    config_tx,
                     "None".to_owned(),
                     analyzers,
                     modifiers,

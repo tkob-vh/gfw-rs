@@ -81,7 +81,7 @@ impl crate::Engine for Engine {
         &mut self,
         program_cancellation_token: tokio_util::sync::CancellationToken,
         service_tx: tokio::sync::watch::Sender<bool>,
-        mut config_rx: tokio::sync::watch::Receiver<()>,
+        config_tx: tokio::sync::watch::Sender<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
         modifiers: Vec<Arc<dyn nt_modifier::Modifier>>,
@@ -130,6 +130,7 @@ impl crate::Engine for Engine {
         self.io.register(packet_handler, service_rx).await?;
 
         let io = self.io.clone();
+        let mut config_rx = config_tx.subscribe();
         // Wait for either error or shutdown signal or ruleset reload.
         loop {
             tokio::select! {

@@ -21,7 +21,7 @@ pub trait Engine {
         &mut self,
         program_cancellation_token: tokio_util::sync::CancellationToken,
         service_tx: tokio::sync::watch::Sender<bool>,
-        mut config_rx: tokio::sync::watch::Receiver<()>,
+        config_tx: tokio::sync::watch::Sender<()>,
         ruleset_file: String,
         analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
         modifier: Vec<Arc<dyn nt_modifier::Modifier>>,

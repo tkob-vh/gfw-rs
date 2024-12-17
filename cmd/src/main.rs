@@ -142,7 +142,7 @@ async fn main() {
     });
 
     // Handle file monitoring for config reload
-    let (config_tx, config_rx) = tokio::sync::watch::channel(());
+    let (config_tx, _config_rx) = tokio::sync::watch::channel(());
 
     tracker.spawn({
         let ruleset_file = cli.ruleset_file.clone();
@@ -213,7 +213,7 @@ async fn main() {
                 .run(
                     program_cancellation_token,
                     service_tx,
-                    config_rx,
+                    config_tx,
                     cli.ruleset_file.clone(),
                     analyzers,
                     modifiers,
