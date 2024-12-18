@@ -17,6 +17,38 @@ pub struct Header {
     token: BytesMut,
 }
 
+impl Header {
+    /// Return the `version` field in Header
+    pub fn get_version(&self) -> u32 {
+        self.version
+    }
+
+    /// Return the `length` field in Header
+    pub fn get_length(&self) -> usize {
+        self.length
+    }
+
+    /// Return the dcid
+    pub fn get_dcid(&self) -> Vec<u8> {
+        self.dest_connection_id.to_vec()
+    }
+
+    /// Return the `quic_type`
+    pub fn get_quic_type(&self) -> u8 {
+        self.quic_type
+    }
+
+    /// Return the scid
+    pub fn get_scid(&self) -> Vec<u8> {
+        self.src_connection_id.to_vec()
+    }
+
+    /// Return the `token`
+    pub fn get_token(&self) -> Vec<u8> {
+        self.token.to_vec()
+    }
+}
+
 /// Parse the initial packet of a QUIC connection
 ///
 /// # Arguments
@@ -27,6 +59,7 @@ pub struct Header {
 ///
 /// The initial header and the number of bytes read so far.
 ///
+/// ```text
 /// Initial Packet {
 ///  Header Form (1) = 1,
 ///  Fixed Bit (1) = 1,
@@ -44,6 +77,7 @@ pub struct Header {
 ///  Packet Number (8..32),
 ///  Packet Payload (8..),
 /// }
+/// ```
 pub fn parse_initial_header(data: &mut BytesMut) -> (Option<Header>, usize) {
     let pkt_len = data.len();
     let hdr = parse_long_header(data);
@@ -62,6 +96,7 @@ pub fn parse_initial_header(data: &mut BytesMut) -> (Option<Header>, usize) {
 ///
 /// An `Option<Header>` which is `Some` if the header was successfully parsed, or `None` if there was an error.
 ///
+/// ```text
 /// Long Header Packet {
 ///  Header Form (1) = 1,
 ///  Fixed Bit (1) = 1,
@@ -74,6 +109,7 @@ pub fn parse_initial_header(data: &mut BytesMut) -> (Option<Header>, usize) {
 ///  Source Connection ID (0..160),
 ///  Type-Specific Payload (..),
 /// }
+/// ```
 fn parse_long_header(data: &mut BytesMut) -> Option<Header> {
     // Get the first byte which contains the QUIC type.
     if data.is_empty() {
@@ -170,7 +206,22 @@ fn parse_long_header(data: &mut BytesMut) -> Option<Header> {
 
 /// Reads a QUIC variable-length integer from the provided buffer.
 ///
+/// The QUIC protocol uses variable-length integers (varints) to encode non-negative integer values in QUIC packets and frames.
+///
 /// QUIC variable-length integers can be 1, 2, 4, or 8 bytes long. The length is determined by the first two bits of the first byte.
+///
+///    +------+--------+-------------+-----------------------+
+///    | 2Bit | Length | Usable Bits | Range                 |
+///    +------+--------+-------------+-----------------------+
+///    | 00   | 1      | 6           | 0-63                  |
+///    |      |        |             |                       |
+///    | 01   | 2      | 14          | 0-16383               |
+///    |      |        |             |                       |
+///    | 10   | 4      | 30          | 0-1073741823          |
+///    |      |        |             |                       |
+///    | 11   | 8      | 62          | 0-4611686018427387903 |
+///    +------+--------+-------------+-----------------------+
+///
 ///
 /// # Arguments
 ///
@@ -179,7 +230,10 @@ fn parse_long_header(data: &mut BytesMut) -> Option<Header> {
 /// # Returns
 ///
 /// A `Result` containing the parsed integer as `usize` if successful, or an error message as `String` if the buffer does not contain enough data or if the length prefix is invalid.
-fn read_var_len_integer(buf: &mut BytesMut) -> Result<usize, String> {
+///
+/// # References
+/// <https://datatracker.ietf.org/doc/html/draft-ietf-quic-transport-16#section-16>
+pub fn read_var_len_integer(buf: &mut BytesMut) -> Result<usize, String> {
     if buf.is_empty() {
         return Err("Buffer is empty; cannot read var-length integer".into());
     }
