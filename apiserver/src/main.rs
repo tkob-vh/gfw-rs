@@ -1,4 +1,4 @@
-use apiserver::LogWriter;
+use apiserver::logger::LogWriter;
 use apiserver::ServerConfig;
 use axum::Extension;
 use axum::Router;
