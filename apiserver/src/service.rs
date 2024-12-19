@@ -1,5 +1,5 @@
+use crate::error::{ServiceError, SetupEngineSnafu};
 use crate::SharedServerConfig;
-use crate::{ServiceError, SetupEngineSnafu};
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::IntoResponse,

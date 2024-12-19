@@ -1,4 +1,5 @@
-use crate::{IoSnafu, SerdeSnafu, ServiceError, SharedServerConfig};
+use crate::error::{IoSnafu, SerdeSnafu, ServiceError};
+use crate::SharedServerConfig;
 use axum::{routing::post, Extension, Json, Router};
 use nt_cmd::config::CliConfig;
 use nt_ruleset::expr_rule::ExprRule;
