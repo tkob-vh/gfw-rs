@@ -17,5 +17,5 @@ nt-io.workspace = true
 nt-analyzer.workspace = true
 nt-modifier.workspace = true
 rhai.workspace = true
-notify = "7.0.0"
+notify.workspace = true
 tokio-util.workspace = true

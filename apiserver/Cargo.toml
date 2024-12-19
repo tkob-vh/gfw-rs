@@ -20,4 +20,7 @@ nt-io.workspace = true
 rhai.workspace = true
 nt-engine.workspace = true
 snafu.workspace = true
+clap.workspace = true
+notify.workspace = true
+serde_yaml.workspace = true
 tokio-util = "0.7.13"
