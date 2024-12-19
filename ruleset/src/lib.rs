@@ -1,6 +1,6 @@
 use nt_analyzer::Analyzer;
 use nt_modifier::Instance;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug};
 use std::net::IpAddr;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ impl fmt::Display for Protocol {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum Action {
     Maybe,

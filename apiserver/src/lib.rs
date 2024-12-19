@@ -1,8 +1,13 @@
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use nt_analyzer::Analyzer;
 use nt_cmd::config;
 use nt_io::PacketIO;
 use nt_modifier::Modifier;
 use nt_ruleset::expr_rule::ExprRuleset;
+use snafu::Snafu;
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
@@ -59,11 +64,52 @@ pub struct ServerConfig {
     pub config: Arc<config::CliConfig>,
     /// _
     pub rule_set: Option<Arc<ExprRuleset>>,
+    pub ruleset_file: String,
     pub io_impl: Option<Arc<dyn PacketIO>>,
+
+    /// The channel to notify the engine to reload the configuration.
+    pub config_tx: tokio::sync::watch::Sender<()>,
 
     /// shutdown also stand for the engine is running.
     //pub shutdown: Option<Sender<()>>,
     pub engine_cancellation_token: tokio_util::sync::CancellationToken,
     pub program_cancellation_token: tokio_util::sync::CancellationToken,
     pub engine_handler: Option<tokio::task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
+}
+
+#[derive(Debug, Snafu)]
+pub enum ServiceError {
+    #[snafu(display("Failed to setup engine: {}", source))]
+    SetupEngine {
+        source: Box<dyn Error + Send + Sync>,
+    },
+
+    #[snafu(display("Failed to send shutdown signal"))]
+    ShutdownSignal,
+
+    #[snafu(display("{}", message))]
+    Common { message: String },
+
+    #[snafu(display("IO error {}", source))]
+    IoError { source: std::io::Error },
+
+    #[snafu(display("Serde error {}", source))]
+    SerdeError { source: serde_yaml::Error },
+}
+
+impl IntoResponse for ServiceError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match &self {
+            ServiceError::SetupEngine { .. } => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+            ServiceError::ShutdownSignal => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            ServiceError::Common { .. } => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            ServiceError::IoError { .. } => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            ServiceError::SerdeError { .. } => {
+                (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
+            }
+        };
+        (status, error_message).into_response()
+    }
 }

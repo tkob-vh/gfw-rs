@@ -4,7 +4,7 @@ use nt_analyzer::extract_json_from_combinedpropmap;
 use nt_analyzer::Analyzer;
 use nt_modifier::{Instance, Modifier};
 use rhai::Dynamic;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -12,7 +12,7 @@ use tokio::io::AsyncReadExt;
 use tracing::{debug, error, info};
 
 /// Represents an expression rule.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ExprRule {
     /// The name of the rule.
     pub name: String,
@@ -26,7 +26,7 @@ pub struct ExprRule {
     pub expr: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ModifierEntry {
     pub name: String,
     pub args: HashMap<String, String>,

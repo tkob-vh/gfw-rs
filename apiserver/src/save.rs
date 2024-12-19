@@ -1,8 +1,10 @@
-use crate::SharedServerConfig;
+use crate::{IoSnafu, SerdeSnafu, ServiceError, SharedServerConfig};
 use axum::{routing::post, Extension, Json, Router};
 use nt_cmd::config::CliConfig;
 use nt_ruleset::expr_rule::ExprRule;
+use snafu::ResultExt;
 use std::sync::Arc;
+use tokio::{fs::File, io::AsyncWriteExt};
 use tracing::debug;
 
 pub async fn create_router() -> Router {
@@ -23,10 +25,16 @@ async fn save_config(
 async fn save_rules(
     Extension(server): Extension<SharedServerConfig>,
     Json(rules): Json<Vec<ExprRule>>,
-) {
+) -> Result<(), ServiceError> {
     let mut server_config = server.write().await;
     debug!("Saved rules: {:?}", rules);
-    println!("Saved rules: {:?}", rules);
+    // write to file
+    let mut file = File::create(&server_config.ruleset_file)
+        .await
+        .context(IoSnafu)?;
+    let rulestr = serde_yaml::to_string(&rules).context(SerdeSnafu)?;
+    file.write_all(rulestr.as_bytes()).await.context(IoSnafu)?;
+
     let rhai_engine = Arc::new(rhai::Engine::new());
     let ruleset = nt_ruleset::expr_rule::compile_expr_rules(
         rules,
@@ -35,4 +43,5 @@ async fn save_rules(
         rhai_engine,
     );
     server_config.rule_set = Some(Arc::new(ruleset));
+    Ok(())
 }
