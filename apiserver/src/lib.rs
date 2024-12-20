@@ -4,8 +4,8 @@ use nt_cmd::config;
 use nt_io::PacketIO;
 use nt_modifier::Modifier;
 use nt_ruleset::expr_rule::ExprRuleset;
-use std::error::Error;
 use std::sync::Arc;
+use tokio::sync::watch::Sender;
 use tokio::sync::RwLock;
 
 pub mod error;
@@ -23,7 +23,6 @@ pub struct ServerConfig {
     pub analyzers: Vec<Arc<dyn Analyzer>>,
     pub modifiers: Vec<Arc<dyn Modifier>>,
     pub config: Arc<config::CliConfig>,
-    /// _
     pub rule_set: Option<Arc<ExprRuleset>>,
     pub ruleset_file: String,
     pub io_impl: Option<Arc<dyn PacketIO>>,
@@ -31,9 +30,12 @@ pub struct ServerConfig {
     /// The channel to notify the engine to reload the configuration.
     pub config_tx: tokio::sync::watch::Sender<()>,
 
-    /// shutdown also stand for the engine is running.
-    //pub shutdown: Option<Sender<()>>,
-    pub engine_cancellation_token: tokio_util::sync::CancellationToken,
+    /// The channel to notify the engine to stop.
+    pub engine_starter: Option<Sender<bool>>,
+
+    /// The program cancellation token. used for deal with ctrl c
     pub program_cancellation_token: tokio_util::sync::CancellationToken,
-    pub engine_handler: Option<tokio::task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
+
+    /// The tracker to track the running tasks. used for spawn engine
+    pub tracker: tokio_util::task::TaskTracker,
 }

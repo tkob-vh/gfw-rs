@@ -4,6 +4,9 @@ use axum::Extension;
 use axum::Router;
 use clap::Parser;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use nt_analyzer::Analyzer;
+use nt_modifier::Modifier;
+use nt_ruleset::expr_rule::read_expr_rules_from_file;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -103,31 +106,54 @@ async fn main() {
         }
     });
 
+    // ctrl c
+    debug!("Setting up the ctrl_c handler");
+    let signal = {
+        let program_cancellation_token = program_cancellation_token.clone();
+        let tracker = tracker.clone();
+        async move {
+            tokio::signal::ctrl_c().await.unwrap();
+            info!("Received ctrl_c, shutting down the program...");
+            tracker.close();
+            program_cancellation_token.cancel();
+            tracker.wait().await;
+            println!("Shutting down...");
+        }
+    };
+
     // server config
+    let raw_rs = read_expr_rules_from_file(&cli.ruleset_file)
+        .await
+        .map_err(|e| format!("failed to parse ruleset file: {}", e))
+        .unwrap();
+
+    let analyzers: Vec<Arc<dyn Analyzer>> = vec![
+        Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
+        Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
+        Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+        Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+    ];
+    let modifiers: Vec<Arc<dyn Modifier>> =
+        vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
+    let rhai_engine = Arc::new(rhai::Engine::new());
+    let ruleset =
+        nt_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, rhai_engine);
     let log_writer = LogWriter::new(100);
     let app = app.layer(Extension(Arc::new(RwLock::new(ServerConfig {
         log_writer: log_writer.clone(),
-        analyzers: vec![
-            Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
-        ],
-        modifiers: vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())],
+        analyzers,
+        modifiers,
         config: Arc::new(nt_cmd::config::CliConfig::default()),
         ruleset_file: cli.ruleset_file.clone(),
         config_tx: config_tx.clone(),
         io_impl: None,
-        rule_set: None,
-        engine_cancellation_token: {
-            let token = tokio_util::sync::CancellationToken::default();
-            token.cancel();
-            token
-        },
-        program_cancellation_token: tokio_util::sync::CancellationToken::new(),
-        engine_handler: None,
+        rule_set: Some(Arc::new(ruleset)),
+        engine_starter: None,
+        program_cancellation_token,
+        tracker,
     }))));
 
+    // log
     tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(cli.log_level)
         .with_writer(log_writer)
@@ -143,5 +169,8 @@ async fn main() {
     info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(signal)
+        .await
+        .unwrap();
 }

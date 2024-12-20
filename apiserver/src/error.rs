@@ -24,6 +24,11 @@ pub enum ServiceError {
 
     #[snafu(display("Serde error {}", source))]
     SerdeError { source: serde_yaml::Error },
+
+    #[snafu(display("Failed to restart engine: {}", source))]
+    SendError {
+        source: tokio::sync::watch::error::SendError<bool>,
+    },
 }
 
 impl IntoResponse for ServiceError {
@@ -38,6 +43,7 @@ impl IntoResponse for ServiceError {
             ServiceError::SerdeError { .. } => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string())
             }
+            ServiceError::SendError { .. } => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
         (status, error_message).into_response()
     }
