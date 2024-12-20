@@ -81,7 +81,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
         let service_tx = server_config.engine_starter.clone().unwrap();
         let ruleset_file = server_config.ruleset_file.clone();
         async move {
-            engine
+            let _ = engine
                 .run(
                     program_cancellation_token,
                     service_tx,
