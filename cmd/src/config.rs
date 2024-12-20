@@ -122,9 +122,9 @@ impl Default for CliConfigIO {
     fn default() -> Self {
         CliConfigIO {
             queue_size: 1024,
-            rcv_buf: 4096,
-            snd_buf: 4096,
-            local: false,
+            rcv_buf: 4194304,
+            snd_buf: 4194304,
+            local: true,
             rst: false,
         }
     }
