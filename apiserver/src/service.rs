@@ -1,4 +1,4 @@
-use crate::error::{ServiceError, SetupEngineSnafu};
+use crate::error::{SendSnafu, ServiceError, SetupEngineSnafu};
 use crate::SharedServerConfig;
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
@@ -9,6 +9,7 @@ use axum::{
 use nt_engine::Engine;
 use snafu::ResultExt;
 use std::{sync::Arc, time::Duration};
+use tracing::debug;
 use tracing::info;
 
 pub async fn create_router() -> Router {
@@ -20,10 +21,20 @@ pub async fn create_router() -> Router {
 
 async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let mut server_config = server.write().await;
-    if !server_config.engine_cancellation_token.is_cancelled() {
-        return Ok("Engine already started".to_string());
+
+    if server_config.engine_starter.is_some() {
+        server_config
+            .engine_starter
+            .as_ref()
+            .unwrap()
+            .send(true)
+            .context(SendSnafu)?;
+        return Ok("Engine Has Already Started".to_string());
+    } else {
+        // `true` represents the active state, while `false` represents the inactive state.
+        let (service_tx, _service_rx) = tokio::sync::watch::channel(true);
+        server_config.engine_starter = Some(service_tx);
     }
-    server_config.engine_cancellation_token = tokio_util::sync::CancellationToken::new();
 
     if server_config.io_impl.is_none() {
         info!("Setup IO for nfqueue...");
@@ -59,48 +70,44 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     };
     let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
-    tokio::spawn({
-        let program_cancellation_token = server_config.program_cancellation_token.clone();
-        async move {
-            tokio::signal::ctrl_c().await.unwrap();
-            info!("Received ctrlc, shutdown the program...");
-            program_cancellation_token.cancel();
-        }
-    });
-
-    let (config_tx, _config_rx) = tokio::sync::watch::channel(());
-    let (service_tx, _service_rx) = tokio::sync::watch::channel(true);
-
     info!("Engine started");
 
     // Run the engine until shutdown signal
-    let engine_handle = tokio::spawn({
+    server_config.tracker.spawn({
         let program_cancellation_token = server_config.program_cancellation_token.clone();
         let analyzers = server_config.analyzers.clone();
         let modifiers = server_config.modifiers.clone();
+        let config_tx = server_config.config_tx.clone();
+        let service_tx = server_config.engine_starter.clone().unwrap();
+        let ruleset_file = server_config.ruleset_file.clone();
         async move {
             engine
                 .run(
                     program_cancellation_token,
                     service_tx,
                     config_tx,
-                    "None".to_owned(),
+                    ruleset_file,
                     analyzers,
                     modifiers,
                 )
-                .await
+                .await;
+            debug!("Engine stopped");
         }
     });
-    drop(engine_handle);
     Ok("Engine started".to_string())
 }
 
 async fn stop_service(server: Extension<SharedServerConfig>) -> Result<String, ServiceError> {
     let server_config = server.write().await;
-    if server_config.engine_cancellation_token.is_cancelled() {
+    if server_config.engine_starter.is_none() {
         return Ok("Engine Has Not Started Yet".to_string());
     }
-    server_config.engine_cancellation_token.cancel();
+    server_config
+        .engine_starter
+        .as_ref()
+        .unwrap()
+        .send(false)
+        .context(SendSnafu)?;
     Ok("Engine stopped".to_string())
 }
 

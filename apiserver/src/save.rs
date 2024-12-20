@@ -36,13 +36,15 @@ async fn save_rules(
     let rulestr = serde_yaml::to_string(&rules).context(SerdeSnafu)?;
     file.write_all(rulestr.as_bytes()).await.context(IoSnafu)?;
 
-    let rhai_engine = Arc::new(rhai::Engine::new());
-    let ruleset = nt_ruleset::expr_rule::compile_expr_rules(
-        rules,
-        &server_config.analyzers,
-        &server_config.modifiers,
-        rhai_engine,
-    );
-    server_config.rule_set = Some(Arc::new(ruleset));
+    if server_config.engine_starter.is_none() {
+        let rhai_engine = Arc::new(rhai::Engine::new());
+        let ruleset = nt_ruleset::expr_rule::compile_expr_rules(
+            rules,
+            &server_config.analyzers,
+            &server_config.modifiers,
+            rhai_engine,
+        );
+        server_config.rule_set = Some(Arc::new(ruleset));
+    }
     Ok(())
 }
