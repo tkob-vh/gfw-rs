@@ -12,3 +12,7 @@ rhai.workspace = true
 gfw-analyzer.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
+protobuf = "3.7.1"
+
+[build-dependencies]
+protobuf-codegen = "3.7.1"
