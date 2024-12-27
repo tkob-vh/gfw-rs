@@ -1,16 +1,16 @@
 use crate::builtins::geo::v2geo::v2geo::{GeoIP, GeoIPList, GeoSite, GeoSiteList};
 use protobuf::Message;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::sync::Arc;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 
-pub async fn load_geoip(
+pub fn load_geoip(
     filename: &str,
 ) -> Result<HashMap<String, Arc<GeoIP>>, Box<dyn std::error::Error>> {
-    let mut file = File::open(filename).await?;
+    let mut file = File::open(filename)?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).await?;
+    file.read_to_end(&mut buffer)?;
 
     let mut list = GeoIPList::new();
     list.merge_from_bytes(&buffer)?;
@@ -22,12 +22,12 @@ pub async fn load_geoip(
     Ok(map)
 }
 
-pub async fn load_geo_site(
+pub fn load_geo_site(
     filename: &str,
 ) -> Result<HashMap<String, Arc<GeoSite>>, Box<dyn std::error::Error>> {
-    let mut file = File::open(filename).await?;
+    let mut file = File::open(filename)?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).await?;
+    file.read_to_end(&mut buffer)?;
 
     let mut list = GeoSiteList::new();
     list.merge_from_bytes(&buffer)?;

@@ -1,10 +1,10 @@
 use super::v2geo::{GeoIP, GeoSite};
-use reqwest;
+use reqwest::blocking::Client;
 use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::fs;
-use tokio::io::AsyncWriteExt;
 
 const GEOIP_FILENAME: &str = "geoip.dat";
 const GEOIP_URL: &str =
@@ -34,8 +34,8 @@ impl V2GeoLoader {
         }
     }
 
-    async fn should_download(&self, filename: &str) -> bool {
-        if let Ok(metadata) = fs::metadata(filename).await {
+    fn should_download(&self, filename: &str) -> bool {
+        if let Ok(metadata) = fs::metadata(filename) {
             if let Ok(modified) = metadata.modified() {
                 if let Ok(elapsed) = modified.elapsed() {
                     return elapsed > self.update_interval;
@@ -45,16 +45,16 @@ impl V2GeoLoader {
         true
     }
 
-    async fn download(&self, filename: &str, url: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let response = reqwest::get(url).await?;
-        let mut file = fs::File::create(filename).await?;
-        let content = response.bytes().await?;
-        file.write_all(&content).await?;
-
+    fn download(&self, filename: &str, url: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new();
+        let response = client.get(url).send()?;
+        let mut file = fs::File::create(filename)?;
+        let content = response.bytes()?;
+        file.write_all(&content)?;
         Ok(())
     }
 
-    pub async fn load_geoip(
+    pub fn load_geoip(
         &mut self,
     ) -> Result<HashMap<String, Arc<GeoIP>>, Box<dyn std::error::Error>> {
         if self.geoip_map.is_some() {
@@ -67,16 +67,16 @@ impl V2GeoLoader {
             self.geoip_filename.clone()
         };
 
-        if self.should_download(&filename).await {
-            self.download(&filename, GEOIP_URL).await?;
+        if self.should_download(&filename) {
+            self.download(&filename, GEOIP_URL)?;
         }
 
-        let geoip_map = super::load::load_geoip(&filename).await?;
+        let geoip_map = super::load::load_geoip(&filename)?;
         self.geoip_map = Some(geoip_map.clone());
         Ok(geoip_map)
     }
 
-    pub async fn load_geosite(
+    pub fn load_geosite(
         &mut self,
     ) -> Result<HashMap<String, Arc<GeoSite>>, Box<dyn std::error::Error>> {
         if self.geosite_map.is_some() {
@@ -89,11 +89,11 @@ impl V2GeoLoader {
             self.geosite_filename.clone()
         };
 
-        if self.should_download(&filename).await {
-            self.download(&filename, GEOSITE_URL).await?;
+        if self.should_download(&filename) {
+            self.download(&filename, GEOSITE_URL)?;
         }
 
-        let geosite_map = super::load::load_geo_site(&filename).await?;
+        let geosite_map = super::load::load_geo_site(&filename)?;
         self.geosite_map = Some(geosite_map.clone());
         Ok(geosite_map)
     }
