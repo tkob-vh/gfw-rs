@@ -1,10 +1,10 @@
-use crate::v2geo::geo::{GeoIP, GeoIPList, GeoSite, GeoSiteList};
+use crate::builtins::geo::v2geo::v2geo::{GeoIP, GeoIPList, GeoSite, GeoSiteList};
 use protobuf::Message;
 use std::collections::HashMap;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
-async fn load_geoip(
+pub async fn load_geoip(
     filename: String,
 ) -> Result<HashMap<String, GeoIP>, Box<dyn std::error::Error>> {
     let mut file = File::open(filename).await?;
@@ -21,7 +21,7 @@ async fn load_geoip(
     Ok(map)
 }
 
-async fn load_geo_site(
+pub async fn load_geo_site(
     filename: String,
 ) -> Result<HashMap<String, GeoSite>, Box<dyn std::error::Error>> {
     let mut file = File::open(filename).await?;
