@@ -19,15 +19,15 @@ pub struct V2GeoLoader {
     geoip_filename: String,
     geosite_filename: String,
     update_interval: Duration,
-    geoip_map: Option<HashMap<String, Arc<GeoIP>>>,
-    geosite_map: Option<HashMap<String, Arc<GeoSite>>>,
+    geoip_map: Option<Arc<HashMap<String, GeoIP>>>,
+    geosite_map: Option<Arc<HashMap<String, GeoSite>>>,
 }
 
 impl V2GeoLoader {
-    pub fn new(geoip_filename: String, geosite_filename: String) -> Self {
+    pub fn new(geoip_filename: &str, geosite_filename: &str) -> Self {
         V2GeoLoader {
-            geoip_filename,
-            geosite_filename,
+            geoip_filename: geoip_filename.to_string(),
+            geosite_filename: geosite_filename.to_string(),
             update_interval: GEO_DEFAULT_UPDATE_INTERVAL,
             geoip_map: None,
             geosite_map: None,
@@ -56,7 +56,7 @@ impl V2GeoLoader {
 
     pub fn load_geoip(
         &mut self,
-    ) -> Result<HashMap<String, Arc<GeoIP>>, Box<dyn std::error::Error>> {
+    ) -> Result<Arc<HashMap<String, GeoIP>>, Box<dyn std::error::Error>> {
         if self.geoip_map.is_some() {
             return Ok(self.geoip_map.clone().unwrap());
         }
@@ -78,7 +78,7 @@ impl V2GeoLoader {
 
     pub fn load_geosite(
         &mut self,
-    ) -> Result<HashMap<String, Arc<GeoSite>>, Box<dyn std::error::Error>> {
+    ) -> Result<Arc<HashMap<String, GeoSite>>, Box<dyn std::error::Error>> {
         if self.geosite_map.is_some() {
             return Ok(self.geosite_map.clone().unwrap());
         }
