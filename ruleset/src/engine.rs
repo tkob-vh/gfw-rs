@@ -1,3 +1,4 @@
+use crate::builtins::cidr::is_ip_in_cidr;
 use crate::builtins::geo::matcher;
 use rhai::{Module, Shared};
 use std::sync::Arc;
@@ -29,6 +30,8 @@ impl Engine {
             let matcher: matcher::GeoMatcher = clone_moudle.get_var("matcher").unwrap().cast();
             matcher.geosite(host, condition)
         });
+
+        engine.register_fn("cidr", is_ip_in_cidr);
 
         Self {
             shared_global_module: global_moudle,
