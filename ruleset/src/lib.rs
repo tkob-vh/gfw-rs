@@ -6,6 +6,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 pub mod builtins;
+pub mod engine;
 pub mod expr_rule;
 
 #[derive(Debug)]
