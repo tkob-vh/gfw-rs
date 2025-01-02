@@ -4,6 +4,7 @@ members = [
   "analyzer",
   "apiserver",
   "cmd",
+  "config",
   "engine",
   "io",
   "modifier",
@@ -36,3 +37,4 @@ gfw-engine = { package = "engine", path = 'engine' }
 gfw-io = { package = "io", path = 'io' }
 gfw-modifier = { package = "modifier", path = 'modifier' }
 gfw-ruleset = { package = "ruleset", path = 'ruleset' }
+gfw-config = { package = "config", path = 'config' }

@@ -11,6 +11,7 @@ clap.workspace = true
 gfw-ruleset.workspace = true
 serde-aux.workspace = true
 gfw-engine.workspace = true
+gfw-config.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 gfw-io.workspace = true

@@ -13,6 +13,7 @@ use crate::{
     worker::{Worker, WorkerConfig, WorkerPacket},
     Config,
 };
+use gfw_ruleset::engine::Engine as RulesetEngine;
 
 /// The gfw engine
 pub struct Engine {
@@ -23,6 +24,9 @@ pub struct Engine {
 
     /// The senders which send tasks to the workers.
     worker_senders: Vec<mpsc::Sender<WorkerPacket>>,
+
+    /// engine for ruleset
+    ruleset_engine: RulesetEngine,
 }
 
 impl Engine {
@@ -31,11 +35,15 @@ impl Engine {
     /// # Arguments
     ///
     /// * `config` - A `Config` struct containing the configuration for the engine.
+    /// * `ruleset_engine` - A `RulesetEngine` instance for managing rulesets.
     ///
     /// # Returns
     ///
     /// * `Result<Self, Box<dyn Error + Send + Sync>>` - Returns an `Engine` instance on success, or an error on failure.
-    pub fn new(config: Config) -> Result<Self, Box<dyn Error + Send + Sync>> {
+    pub fn new(
+        config: Config,
+        ruleset_engine: RulesetEngine,
+    ) -> Result<Self, Box<dyn Error + Send + Sync>> {
         // Decide the number of workers.
         let worker_count = if config.workers > 0 {
             config.workers
@@ -66,6 +74,7 @@ impl Engine {
             io: config.io,
             workers,
             worker_senders,
+            ruleset_engine,
         })
     }
 }
@@ -151,12 +160,11 @@ impl crate::Engine for Engine {
                         Ok(raw_rs) => {
 
                             debug!("rules: {:?}", raw_rs);
-                            let new_engine = Arc::new(rhai::Engine::new());
                             let rs = gfw_ruleset::expr_rule::compile_expr_rules(
                                 raw_rs,
                                 &analyzers,
                                 &modifiers,
-                                new_engine,
+                                self.ruleset_engine.clone(),
                             );
 
                             _ = rs_tx.send(rs).unwrap();

@@ -7,6 +7,7 @@ use gfw_analyzer::Analyzer;
 use gfw_modifier::Modifier;
 use gfw_ruleset::expr_rule::read_expr_rules_from_file;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use gfw_ruleset::engine::Engine as RulesetEngine;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -136,15 +137,23 @@ async fn main() {
     ];
     let modifiers: Vec<Arc<dyn Modifier>> =
         vec![Arc::new(gfw_modifier::udp::dns::DNSModifier::new())];
-    let rhai_engine = Arc::new(rhai::Engine::new());
-    let ruleset =
-        gfw_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, rhai_engine);
+
+    let config = Arc::new(gfw_config::config::CliConfig::default());
+    let ruleset_engine = RulesetEngine::new(&config.ruleset.geoip, &config.ruleset.geosite);
+
+    let ruleset = gfw_ruleset::expr_rule::compile_expr_rules(
+        raw_rs,
+        &analyzers,
+        &modifiers,
+        ruleset_engine.clone(),
+    );
     let log_writer = LogWriter::new(100);
     let app = app.layer(Extension(Arc::new(RwLock::new(ServerConfig {
         log_writer: log_writer.clone(),
         analyzers,
         modifiers,
-        config: Arc::new(gfw_cmd::config::CliConfig::default()),
+        ruleset_engine,
+        config,
         ruleset_file: cli.ruleset_file.clone(),
         config_tx: config_tx.clone(),
         io_impl: None,
