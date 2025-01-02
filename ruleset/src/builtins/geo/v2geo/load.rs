@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 pub fn load_geoip(
     filename: &str,
-) -> Result<HashMap<String, Arc<GeoIP>>, Box<dyn std::error::Error>> {
+) -> Result<Arc<HashMap<String, GeoIP>>, Box<dyn std::error::Error>> {
     let mut file = File::open(filename)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -17,14 +17,14 @@ pub fn load_geoip(
 
     let mut map = HashMap::new();
     for entry in list.entry {
-        map.insert(entry.country_code.to_lowercase(), Arc::new(entry));
+        map.insert(entry.country_code.to_lowercase(), entry);
     }
-    Ok(map)
+    Ok(Arc::new(map))
 }
 
 pub fn load_geo_site(
     filename: &str,
-) -> Result<HashMap<String, Arc<GeoSite>>, Box<dyn std::error::Error>> {
+) -> Result<Arc<HashMap<String, GeoSite>>, Box<dyn std::error::Error>> {
     let mut file = File::open(filename)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -34,7 +34,7 @@ pub fn load_geo_site(
 
     let mut map = HashMap::new();
     for entry in list.entry {
-        map.insert(entry.country_code.to_lowercase(), Arc::new(entry));
+        map.insert(entry.country_code.to_lowercase(), entry);
     }
-    Ok(map)
+    Ok(Arc::new(map))
 }
