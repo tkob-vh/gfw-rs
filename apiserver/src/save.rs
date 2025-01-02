@@ -1,7 +1,7 @@
 use crate::error::{IoSnafu, SerdeSnafu, ServiceError};
 use crate::SharedServerConfig;
 use axum::{routing::post, Extension, Json, Router};
-use gfw_cmd::config::CliConfig;
+use gfw_config::config::CliConfig;
 use gfw_ruleset::expr_rule::ExprRule;
 use snafu::ResultExt;
 use std::sync::Arc;
@@ -37,12 +37,11 @@ async fn save_rules(
     file.write_all(rulestr.as_bytes()).await.context(IoSnafu)?;
 
     if server_config.engine_starter.is_none() {
-        let rhai_engine = Arc::new(rhai::Engine::new());
         let ruleset = gfw_ruleset::expr_rule::compile_expr_rules(
             rules,
             &server_config.analyzers,
             &server_config.modifiers,
-            rhai_engine,
+            server_config.ruleset_engine.clone(),
         );
         server_config.rule_set = Some(Arc::new(ruleset));
     }
