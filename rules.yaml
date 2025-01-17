@@ -1,7 +1,7 @@
 - name: block v2ex http
   action: block
   analyzer: http
-  expr: props["http"]["headers"]["host"].ends_with("v2ex.com")
+  expr: props["http"]["req"]["headers"]["host"].ends_with("v2ex.com")
 
 - name: github dns poisoning
   action: modify
@@ -22,7 +22,6 @@
       a: "0.0.0.0"
       aaaa: "::"
   expr: props["dns"]["qr"] == "1" && !props["dns"]["questions"].filter(|q| q["name"].ends_with("google.com")).is_empty()
-
 
 - name: block wireguard by handshake response
   action: drop

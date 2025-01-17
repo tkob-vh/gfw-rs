@@ -228,9 +228,14 @@ impl TCPStream for HTTPStream {
             (cancelled, self.resp_done) = (*lsm).write().unwrap().run(self);
 
             if self.resp_updated {
+                let mut resp = PropMap::new();
+                resp.insert(
+                    "resp".to_string(),
+                    serde_json::Value::Object(self.resp_map.clone()),
+                );
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Merge,
-                    map: self.resp_map.clone(),
+                    map: resp,
                 });
                 self.resp_updated = false;
             }
@@ -243,9 +248,14 @@ impl TCPStream for HTTPStream {
             (cancelled, self.req_done) = (*lsm).write().unwrap().run(self);
 
             if self.req_updated {
+                let mut req = PropMap::new();
+                req.insert(
+                    "req".to_string(),
+                    serde_json::Value::Object(self.req_map.clone()),
+                );
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Merge,
-                    map: self.req_map.clone(),
+                    map: req,
                 });
                 self.req_updated = false;
             }
@@ -346,17 +356,17 @@ mod tests {
             let result_map = a.unwrap().map; // 获取实际返回的 `map`
 
             // Check method
-            let method = result_map.get("method").unwrap();
+            let method = result_map.get("req").unwrap().get("method").unwrap();
             let want_method = want.get("method").unwrap();
             assert_eq!(method, want_method);
 
             // Check path
-            let path = result_map.get("path").unwrap();
+            let path = result_map.get("req").unwrap().get("path").unwrap();
             let want_path = want.get("path").unwrap();
             assert_eq!(path, want_path);
 
             // Check version
-            let version = result_map.get("version").unwrap();
+            let version = result_map.get("req").unwrap().get("version").unwrap();
             let want_version = want.get("version").unwrap();
             assert_eq!(version, want_version);
         }
@@ -396,23 +406,23 @@ mod tests {
         let result_map = a.unwrap().map;
         let want = input.1;
         // Check method
-        let method = result_map.get("method").unwrap();
+        let method = result_map.get("req").unwrap().get("method").unwrap();
         let want_method = want.get("method").unwrap();
         assert_eq!(method, want_method);
 
         // Check path
-        let path = result_map.get("path").unwrap();
+        let path = result_map.get("req").unwrap().get("path").unwrap();
         let want_path = want.get("path").unwrap();
         assert_eq!(path, want_path);
 
         // Check version
-        let version = result_map.get("version").unwrap();
+        let version = result_map.get("req").unwrap().get("version").unwrap();
         let want_version = want.get("version").unwrap();
         assert_eq!(version, want_version);
 
         // Check headers
         let expected_headers = want.get("headers").unwrap();
-        let headers = result_map.get("headers").unwrap();
+        let headers = result_map.get("req").unwrap().get("headers").unwrap();
 
         // check content-length
         assert_eq!(
