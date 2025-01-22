@@ -387,17 +387,11 @@ pub fn parse_tls_extensions(
             }
             let sni_len = ext_data_buf.get_u16();
 
-            prop_map.insert(
-                "sni".to_string(),
-                serde_json::Value::Array(
-                    ext_data_buf
-                        .split_to(sni_len as usize)
-                        .iter()
-                        .copied()
-                        .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
-                        .collect(),
-                ),
-            );
+            prop_map.insert("sni".to_string(), {
+                let sni_bytes = ext_data_buf.split_to(sni_len as usize);
+                let sni_str = String::from_utf8_lossy(&sni_bytes).into_owned();
+                serde_json::Value::String(sni_str)
+            });
         }
         EXT_ALPN => {
             if ext_data_buf.len() < 2 {
