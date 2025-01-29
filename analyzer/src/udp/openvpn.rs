@@ -352,11 +352,11 @@ impl UDPStream for OpenVPNUDPStream {
                 let mut prop_map = PropMap::new();
                 prop_map.insert(
                     "rx.pkt_cnt".to_string(),
-                    Arc::new(self.rx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.rx_pkt_cnt.to_string()),
                 );
                 prop_map.insert(
                     "tx_pkt_cnt".to_string(),
-                    Arc::new(self.tx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.tx_pkt_cnt.to_string()),
                 );
                 update = Some(PropUpdate {
                     update_type: PropUpdateType::Replace,
@@ -375,11 +375,11 @@ impl UDPStream for OpenVPNUDPStream {
                 let mut prop_map = PropMap::new();
                 prop_map.insert(
                     "rx_pkt_cnt".to_string(),
-                    Arc::new(self.rx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.rx_pkt_cnt.to_string()),
                 );
                 prop_map.insert(
                     "tx_pkt_cnt".to_string(),
-                    Arc::new(self.tx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.tx_pkt_cnt.to_string()),
                 );
 
                 update = Some(PropUpdate {
@@ -646,11 +646,11 @@ impl TCPStream for OpenVPNTCPStream {
                 let mut prop_map = PropMap::new();
                 prop_map.insert(
                     "rx_pkt_cnt".to_string(),
-                    Arc::new(self.rx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.rx_pkt_cnt.to_string()),
                 );
                 prop_map.insert(
                     "tx_pkt_cnt".to_string(),
-                    Arc::new(self.tx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.tx_pkt_cnt.to_string()),
                 );
 
                 update = Some(PropUpdate {
@@ -669,11 +669,11 @@ impl TCPStream for OpenVPNTCPStream {
                 let mut prop_map = PropMap::new();
                 prop_map.insert(
                     "rx_pkt_cnt".to_string(),
-                    Arc::new(self.rx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.rx_pkt_cnt.to_string()),
                 );
                 prop_map.insert(
                     "tx_pkt_cnt".to_string(),
-                    Arc::new(self.tx_pkt_cnt.to_string()),
+                    serde_json::Value::String(self.tx_pkt_cnt.to_string()),
                 );
 
                 update = Some(PropUpdate {

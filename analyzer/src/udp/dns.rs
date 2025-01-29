@@ -443,86 +443,116 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
     // Extract the properties from the dns packet and store them in the hashmap.
 
     // Process the flags:
-    prop_map.insert("id".to_string(), Arc::new(dns_packet.get_id().to_string()));
+    prop_map.insert(
+        "id".to_string(),
+        serde_json::Value::String(dns_packet.get_id().to_string()),
+    );
     prop_map.insert(
         "qr".to_string(),
-        Arc::new(dns_packet.get_is_response().to_string()),
+        serde_json::Value::String(dns_packet.get_is_response().to_string()),
     );
     prop_map.insert(
         "opcode".to_string(),
-        Arc::new(format!("{:?}", dns_packet.get_opcode())),
+        serde_json::Value::String(format!("{:?}", dns_packet.get_opcode())),
     );
     prop_map.insert(
         "aa".to_string(),
-        Arc::new(dns_packet.get_is_authoriative().to_string()),
+        serde_json::Value::String(dns_packet.get_is_authoriative().to_string()),
     );
     prop_map.insert(
         "tc".to_string(),
-        Arc::new(dns_packet.get_is_truncated().to_string()),
+        serde_json::Value::String(dns_packet.get_is_truncated().to_string()),
     );
     prop_map.insert(
         "rd".to_string(),
-        Arc::new(dns_packet.get_is_recursion_desirable().to_string()),
+        serde_json::Value::String(dns_packet.get_is_recursion_desirable().to_string()),
     );
     prop_map.insert(
         "ra".to_string(),
-        Arc::new(dns_packet.get_is_recursion_available().to_string()),
+        serde_json::Value::String(dns_packet.get_is_recursion_available().to_string()),
     );
     prop_map.insert(
         "z".to_string(),
-        Arc::new(dns_packet.get_zero_reserved().to_string()),
+        serde_json::Value::String(dns_packet.get_zero_reserved().to_string()),
     );
     prop_map.insert(
         "rcode".to_string(),
-        Arc::new(format!("{:?}", dns_packet.get_rcode())),
+        serde_json::Value::String(format!("{:?}", dns_packet.get_rcode())),
     );
 
     // Process the queries.
     if dns_packet.get_query_count() > 0 {
-        let mut prop_map_questions = vec![PropMap::new(); dns_packet.get_query_count() as usize];
+        let mut prop_map_questions =
+            vec![serde_json::Value::Object(PropMap::new()); dns_packet.get_query_count() as usize];
 
         for (i, q) in dns_packet.get_queries_iter().enumerate() {
-            prop_map_questions[i].insert("name".to_string(), Arc::new(parse_qname(q.get_qname())));
-            prop_map_questions[i]
-                .insert("type".to_string(), Arc::new(format!("{}", q.get_qtype())));
-            prop_map_questions[i]
-                .insert("class".to_string(), Arc::new(format!("{}", q.get_qclass())));
+            prop_map_questions[i].as_object_mut().unwrap().insert(
+                "name".to_string(),
+                serde_json::Value::String(parse_qname(q.get_qname())),
+            );
+            prop_map_questions[i].as_object_mut().unwrap().insert(
+                "type".to_string(),
+                serde_json::Value::String(format!("{}", q.get_qtype())),
+            );
+            prop_map_questions[i].as_object_mut().unwrap().insert(
+                "class".to_string(),
+                serde_json::Value::String(format!("{}", q.get_qclass())),
+            );
         }
 
-        prop_map.insert("questions".to_string(), Arc::new(prop_map_questions));
+        prop_map.insert(
+            "questions".to_string(),
+            serde_json::Value::Array(prop_map_questions),
+        );
     }
 
     // Process the resourse records.
     if dns_packet.get_response_count() > 0 {
-        let mut prop_map_answers = vec![PropMap::new(); dns_packet.get_response_count() as usize];
+        let mut prop_map_answers = vec![
+            serde_json::Value::Object(PropMap::new());
+            dns_packet.get_response_count() as usize
+        ];
 
         for (i, rr) in dns_packet.get_responses_iter().enumerate() {
-            prop_map_answers[i] = dns_rr_to_prop_map(&rr);
+            *prop_map_answers[i].as_object_mut().unwrap() = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("answers".to_string(), Arc::new(prop_map_answers));
+        prop_map.insert(
+            "answers".to_string(),
+            serde_json::Value::Array(prop_map_answers),
+        );
     }
 
     if dns_packet.get_authority_rr_count() > 0 {
-        let mut prop_map_authorities =
-            vec![PropMap::new(); dns_packet.get_authority_rr_count() as usize];
+        let mut prop_map_authorities = vec![
+            serde_json::Value::Object(PropMap::new());
+            dns_packet.get_authority_rr_count() as usize
+        ];
 
         for (i, rr) in dns_packet.get_authorities_iter().enumerate() {
-            prop_map_authorities[i] = dns_rr_to_prop_map(&rr);
+            *prop_map_authorities[i].as_object_mut().unwrap() = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("authorities".to_string(), Arc::new(prop_map_authorities));
+        prop_map.insert(
+            "authorities".to_string(),
+            serde_json::Value::Array(prop_map_authorities),
+        );
     }
 
     if dns_packet.get_additional_rr_count() > 0 {
-        let mut prop_map_additionals =
-            vec![PropMap::new(); dns_packet.get_additional_rr_count() as usize];
+        let mut prop_map_additionals = vec![
+            serde_json::Value::Object(PropMap::new());
+            dns_packet.get_additional_rr_count() as usize
+        ];
 
         for (i, rr) in dns_packet.get_additional_iter().enumerate() {
-            prop_map_additionals[i] = dns_rr_to_prop_map(&rr);
+            *prop_map_additionals[i].as_object_mut().unwrap() = dns_rr_to_prop_map(&rr);
         }
 
-        prop_map.insert("additionals".to_string(), Arc::new(prop_map_additionals));
+        prop_map.insert(
+            "additionals".to_string(),
+            serde_json::Value::Array(prop_map_additionals),
+        );
     }
 
     Some(prop_map)
@@ -540,13 +570,22 @@ fn parse_dns_message(msg: &BytesMut) -> Option<PropMap> {
 fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
     let mut prop_map = PropMap::new();
 
-    prop_map.insert("name".to_string(), Arc::new(rr.get_name_tag().to_string()));
-    prop_map.insert("type".to_string(), Arc::new(format!("{}", rr.get_rtype())));
+    prop_map.insert(
+        "name".to_string(),
+        serde_json::Value::String(rr.get_name_tag().to_string()),
+    );
+    prop_map.insert(
+        "type".to_string(),
+        serde_json::Value::String(format!("{}", rr.get_rtype())),
+    );
     prop_map.insert(
         "class".to_string(),
-        Arc::new(format!("{}", rr.get_rclass())),
+        serde_json::Value::String(format!("{}", rr.get_rclass())),
     );
-    prop_map.insert("ttl".to_string(), Arc::new(rr.get_ttl().to_string()));
+    prop_map.insert(
+        "ttl".to_string(),
+        serde_json::Value::String(rr.get_ttl().to_string()),
+    );
 
     debug!(
         "rr data length: {}, data: {:2x?}",
@@ -558,7 +597,7 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
         dns::DnsTypes::A => {
             prop_map.insert(
                 "a".to_string(),
-                Arc::new(format!(
+                serde_json::Value::String(format!(
                     "{}",
                     Ipv4Addr::from(TryInto::<[u8; 4]>::try_into(rr.get_data()).unwrap(),)
                 )),
@@ -567,29 +606,41 @@ fn dns_rr_to_prop_map(rr: &dns::DnsResponsePacket) -> PropMap {
         dns::DnsTypes::AAAA => {
             prop_map.insert(
                 "aaaa".to_string(),
-                Arc::new(format!(
+                serde_json::Value::String(format!(
                     "{}",
                     Ipv6Addr::from(TryInto::<[u8; 16]>::try_into(rr.get_data()).unwrap())
                 )),
             );
         }
         dns::DnsTypes::NS => {
-            prop_map.insert("ns".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
+            prop_map.insert(
+                "ns".to_string(),
+                serde_json::Value::String(parse_dns_name(&rr.get_data()).unwrap()),
+            );
         }
         dns::DnsTypes::CNAME => {
             prop_map.insert(
                 "cname".to_string(),
-                Arc::new(parse_dns_name(&rr.get_data())),
+                serde_json::Value::String(parse_dns_name(&rr.get_data()).unwrap()),
             );
         }
         dns::DnsTypes::PTR => {
-            prop_map.insert("ptr".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
+            prop_map.insert(
+                "ptr".to_string(),
+                serde_json::Value::String(parse_dns_name(&rr.get_data()).unwrap()),
+            );
         }
         dns::DnsTypes::TXT => {
-            prop_map.insert("txt".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
+            prop_map.insert(
+                "txt".to_string(),
+                serde_json::Value::String(parse_dns_name(&rr.get_data()).unwrap()),
+            );
         }
         dns::DnsTypes::MX => {
-            prop_map.insert("mx".to_string(), Arc::new(parse_dns_name(&rr.get_data())));
+            prop_map.insert(
+                "mx".to_string(),
+                serde_json::Value::String(parse_dns_name(&rr.get_data()).unwrap()),
+            );
         }
         _ => {}
     }

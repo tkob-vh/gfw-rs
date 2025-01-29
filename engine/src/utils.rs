@@ -57,7 +57,7 @@ pub fn process_prop_update(
 mod tests {
     use super::*;
     use nt_analyzer::{CombinedPropMap, PropMap, PropUpdate, PropUpdateType};
-    use std::sync::Arc;
+    use serde_json::json;
 
     #[test]
     fn test_process_prop_update_none() {
@@ -73,39 +73,42 @@ mod tests {
     fn test_process_prop_update_merge() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
+        update_map.insert(
+            "key1".to_string(),
+            serde_json::Value::String("value1".to_string()),
+        );
         let update = PropUpdate {
             update_type: PropUpdateType::Merge,
             map: update_map,
         };
         assert!(process_prop_update(&mut cpm, "test", Some(update)));
-        assert_eq!(
-            cpm["test"]["key1"].downcast_ref::<String>().unwrap(),
-            "value1"
-        );
+        assert_eq!(cpm["test"]["key1"], json!("value1"));
     }
 
     #[test]
     fn test_process_prop_update_replace() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
+        update_map.insert(
+            "key1".to_string(),
+            serde_json::Value::String("value1".to_string()),
+        );
         let update = PropUpdate {
             update_type: PropUpdateType::Replace,
             map: update_map,
         };
         assert!(process_prop_update(&mut cpm, "test", Some(update)));
-        assert_eq!(
-            cpm["test"]["key1"].downcast_ref::<String>().unwrap(),
-            "value1"
-        );
+        assert_eq!(cpm["test"]["key1"], json!("value1"));
     }
 
     #[test]
     fn test_process_prop_update_delete() {
         let mut cpm = CombinedPropMap::new();
         let mut update_map = PropMap::new();
-        update_map.insert("key1".to_string(), Arc::new("value1".to_string()));
+        update_map.insert(
+            "key1".to_string(),
+            serde_json::Value::String("value1".to_string()),
+        );
         cpm.insert("test".to_string(), update_map);
         let update = PropUpdate {
             update_type: PropUpdateType::Delete,

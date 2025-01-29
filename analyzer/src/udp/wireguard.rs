@@ -9,8 +9,6 @@
 //! - `WireGuardUDPStream`: Implements the `UDPStream` trait for handling the stream of WireGuard packets.
 //! - `WireGuardIdx`: A structure to store the index information of WireGuard packets.
 
-use std::sync::Arc;
-
 use byteorder::{self, ByteOrder, LittleEndian};
 use bytes::BytesMut;
 use ringbuf::{
@@ -189,10 +187,10 @@ impl WireGuardUDPStream {
                 // String to Message type.
                 prop_map.insert(
                     WIREGUARD_PROPKEY_MESSAGE_TYPE.to_string(),
-                    Arc::new(message_type.to_string()),
+                    serde_json::Value::String(message_type.to_string()),
                 );
                 // Message type to prop_map.
-                prop_map.insert(prop_key, Arc::new(prop_value));
+                prop_map.insert(prop_key, serde_json::Value::Object(prop_value));
 
                 Some(prop_map)
             }
@@ -224,7 +222,10 @@ impl WireGuardUDPStream {
         let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
-        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx.to_string()));
+        prop_map.insert(
+            "sender_index".to_string(),
+            serde_json::Value::String(sender_idx.to_string()),
+        );
 
         // Store the index to the ring buffer.
         self.put_sender_idx(rev, sender_idx);
@@ -257,7 +258,10 @@ impl WireGuardUDPStream {
         let sender_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
 
         // String to sender_idx.
-        prop_map.insert("sender_index".to_string(), Arc::new(sender_idx.to_string()));
+        prop_map.insert(
+            "sender_index".to_string(),
+            serde_json::Value::String(sender_idx.to_string()),
+        );
 
         // Store the index to the ring buffer.
         self.put_sender_idx(rev, sender_idx);
@@ -268,13 +272,13 @@ impl WireGuardUDPStream {
         // String to sender_idx.
         prop_map.insert(
             "receiver_index".to_string(),
-            Arc::new(receiver_idx.to_string()),
+            serde_json::Value::String(receiver_idx.to_string()),
         );
 
         // The matching pair with the receiver_idx.
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
+            serde_json::Value::String(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         Some(prop_map)
@@ -305,18 +309,18 @@ impl WireGuardUDPStream {
         let receiver_idx = LittleEndian::read_u32(data.get(4..8).unwrap());
         prop_map.insert(
             "receiver_index".to_string(),
-            Arc::new(receiver_idx.to_string()),
+            serde_json::Value::String(receiver_idx.to_string()),
         );
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
+            serde_json::Value::String(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         // The counter value is a nonce for the ChaCha20Poly1305 AEAD
         // It also functions to avoid replay attacks.
         prop_map.insert(
             "counter".to_string(),
-            Arc::new(LittleEndian::read_u64(data.get(8..16).unwrap()).to_string()),
+            serde_json::Value::String(LittleEndian::read_u64(data.get(8..16).unwrap()).to_string()),
         );
 
         Some(prop_map)
@@ -346,12 +350,12 @@ impl WireGuardUDPStream {
 
         prop_map.insert(
             "receiver_index".to_string(),
-            Arc::new(receiver_idx.to_string()),
+            serde_json::Value::String(receiver_idx.to_string()),
         );
 
         prop_map.insert(
             "receiver_index_matched".to_string(),
-            Arc::new(self.match_receiver_idx(rev, receiver_idx).to_string()),
+            serde_json::Value::String(self.match_receiver_idx(rev, receiver_idx).to_string()),
         );
 
         Some(prop_map)
@@ -417,10 +421,7 @@ impl UDPStream for WireGuardUDPStream {
         self.invalid_count = 0;
 
         // Extract the message type from prop_map.
-        let message_type = prop_map[WIREGUARD_PROPKEY_MESSAGE_TYPE]
-            .downcast_ref::<String>()
-            .expect("Expected a String")
-            .to_owned();
+        let message_type = prop_map[WIREGUARD_PROPKEY_MESSAGE_TYPE].to_string();
 
         let mut prop_update_type = PropUpdateType::Merge;
 
@@ -449,6 +450,7 @@ mod tests {
     use bytes::BytesMut;
     use hex;
     use ringbuf::traits::Observer;
+    use serde_json::json;
     use std::num::NonZero;
 
     #[test]
@@ -506,12 +508,8 @@ mod tests {
             .parse_wireguard_handshake_initiation(false, &data)
             .unwrap();
         assert_eq!(
-            *prop_map
-                .get("sender_index")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            0xc1039c02u32.to_string()
+            prop_map.get("sender_index").unwrap(),
+            &json!(0xc1039c02u32.to_string())
         );
     }
 
@@ -532,20 +530,12 @@ mod tests {
             .parse_wireguard_handshake_response(false, &data)
             .unwrap();
         assert_eq!(
-            *prop_map
-                .get("sender_index")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            0xdce3fa01u32.to_string()
+            prop_map.get("sender_index").unwrap(),
+            &json!(0xdce3fa01u32.to_string())
         );
         assert_eq!(
-            *prop_map
-                .get("receiver_index")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            0xc1039c02u32.to_string()
+            prop_map.get("receiver_index").unwrap(),
+            &json!(0xc1039c02u32.to_string())
         );
     }
 
@@ -565,12 +555,8 @@ mod tests {
         );
         let prop_map = stream.parse_wireguard_packet_data(false, &data).unwrap();
         assert_eq!(
-            *prop_map
-                .get("receiver_index")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            0xab7df406u32.to_string()
+            prop_map.get("receiver_index").unwrap(),
+            &json!(0xab7df406u32.to_string())
         );
     }
 
