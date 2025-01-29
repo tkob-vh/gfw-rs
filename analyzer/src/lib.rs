@@ -6,9 +6,7 @@ pub mod tls;
 pub mod udp;
 pub mod utils;
 
-use serde_json::{Number, Value};
-use std::{any::Any, fmt::Debug, net::IpAddr, sync::Arc};
-use tracing::error;
+use std::{any::Any, fmt::Debug, net::IpAddr};
 
 /// The `Analyzer` trait defines the basic interface for all analyzers.
 pub trait Analyzer: Any + Send + Sync + Debug {
@@ -152,43 +150,43 @@ pub trait UDPStream: Send + Sync {
 }
 
 /// Property Map for different kinds of packets. From String to the property.
-pub type PropMap = std::collections::HashMap<String, Arc<dyn std::any::Any + Send + Sync>>;
+pub type PropMap = serde_json::Map<String, serde_json::Value>;
 
 /// Combined Property Map.
 /// analyzer -> PropMap
 pub type CombinedPropMap = std::collections::HashMap<String, PropMap>;
 
 /// Extract json Value from CombinedPropMap
-pub fn extract_json_from_combinedpropmap(combined_map: &CombinedPropMap) -> Value {
+pub fn extract_json_from_combinedpropmap(combined_map: &CombinedPropMap) -> serde_json::Value {
     let mut json_combined_map = serde_json::Map::new();
     for (key, value) in combined_map {
-        json_combined_map.insert(key.to_owned(), prop_map_to_json(value));
+        json_combined_map.insert(key.to_owned(), serde_json::Value::Object(value.to_owned()));
     }
 
-    Value::Object(json_combined_map)
+    serde_json::Value::Object(json_combined_map)
 }
 
-/// Convert a PropMap to a JSON Value.
-fn prop_map_to_json(prop_map: &PropMap) -> Value {
-    let mut json_map = serde_json::Map::new();
-
-    for (key, value) in prop_map {
-        if let Some(string_value) = value.downcast_ref::<String>() {
-            json_map.insert(key.clone(), Value::String(string_value.clone()));
-        } else if let Some(nested_map) = value.downcast_ref::<PropMap>() {
-            json_map.insert(key.clone(), prop_map_to_json(nested_map));
-        } else if let Some(vec_maps) = value.downcast_ref::<Vec<PropMap>>() {
-            let json_vec: Vec<Value> = vec_maps.iter().map(prop_map_to_json).collect();
-            json_map.insert(key.clone(), Value::Array(json_vec));
-        } else if let Some(value) = value.downcast_ref::<u16>() {
-            json_map.insert(key.clone(), Value::Number(Number::from(value.to_owned())));
-        } else {
-            error!("Unsupported value type!!! Key: {}", &key);
-        }
-    }
-
-    Value::Object(json_map)
-}
+///// Convert a PropMap to a JSON Value.
+//fn prop_map_to_json(prop_map: &PropMap) -> Value {
+//    let mut json_map = serde_json::Map::new();
+//
+//    for (key, value) in prop_map {
+//        if let Some(string_value) = value.downcast_ref::<String>() {
+//            json_map.insert(key.clone(), Value::String(string_value.clone()));
+//        } else if let Some(nested_map) = value.downcast_ref::<PropMap>() {
+//            json_map.insert(key.clone(), prop_map_to_json(nested_map));
+//        } else if let Some(vec_maps) = value.downcast_ref::<Vec<PropMap>>() {
+//            let json_vec: Vec<Value> = vec_maps.iter().map(prop_map_to_json).collect();
+//            json_map.insert(key.clone(), Value::Array(json_vec));
+//        } else if let Some(value) = value.downcast_ref::<u16>() {
+//            json_map.insert(key.clone(), Value::Number(Number::from(value.to_owned())));
+//        } else {
+//            error!("Unsupported value type!!! Key: {}", &key);
+//        }
+//    }
+//
+//    Value::Object(json_map)
+//}
 
 /// The `PropUpdateType` enum defines the types of property updates that can occur.
 #[derive(PartialEq, Debug)]
@@ -360,20 +358,18 @@ mod tests {
     #[test]
     fn test_prop_update() {
         let mut map = PropMap::new();
-        map.insert("key".to_string(), Arc::new("value".to_string()));
+        map.insert(
+            "key".to_string(),
+            serde_json::Value::String("value".to_string()),
+        );
         let update = PropUpdate {
             update_type: PropUpdateType::Merge,
             map: map.clone(),
         };
         assert_eq!(update.update_type, PropUpdateType::Merge);
         assert_eq!(
-            update
-                .map
-                .get("key")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            "value"
+            update.map.get("key").unwrap(),
+            &serde_json::Value::String("value".to_string())
         );
     }
 

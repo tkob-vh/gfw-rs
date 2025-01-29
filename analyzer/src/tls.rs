@@ -4,8 +4,6 @@
 //! the ClientHello and ServerHello messages. It also includes constants for various
 //! TLS record and handshake message types, as well as extension types.
 
-use std::sync::Arc;
-
 use bytes::{Buf, BytesMut};
 use tracing::error;
 
@@ -108,8 +106,21 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
 
     // Version, random & session ID length combined are within 35 bytes,
     // so no need for bounds checking
-    prop_map.insert("version".to_string(), Arc::new(ch_buf.get_u16()));
-    prop_map.insert("random".to_string(), Arc::new(ch_buf.split_to(32)));
+    prop_map.insert(
+        "version".to_string(),
+        serde_json::Value::Number(serde_json::Number::from(ch_buf.get_u16())),
+    );
+    prop_map.insert(
+        "random".to_string(),
+        serde_json::Value::Array(
+            ch_buf
+                .split_to(32)
+                .iter()
+                .copied()
+                .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                .collect(),
+        ),
+    );
 
     let session_id_len = ch_buf.get_u8();
     if ch_buf.len() < session_id_len as usize {
@@ -119,9 +130,17 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
         );
         return None;
     }
+
     prop_map.insert(
         "session".to_string(),
-        Arc::new(ch_buf.split_to(session_id_len as usize)),
+        serde_json::Value::Array(
+            ch_buf
+                .split_to(session_id_len as usize)
+                .iter()
+                .copied()
+                .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                .collect(),
+        ),
     );
 
     if ch_buf.len() < 2 {
@@ -140,10 +159,12 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
             error!("No enough data for cipher suites");
             return None;
         }
-        ciphers.push(ch_buf.get_u16());
+        ciphers.push(serde_json::Value::Number(serde_json::Number::from(
+            ch_buf.get_u16(),
+        )));
     }
 
-    prop_map.insert("ciphers".to_string(), Arc::new(ciphers));
+    prop_map.insert("ciphers".to_string(), serde_json::Value::Array(ciphers));
 
     if ch_buf.is_empty() {
         error!("No enough data for compression methods length");
@@ -158,7 +179,14 @@ pub fn parse_tls_client_hello_msg_data(ch_buf: &mut BytesMut) -> Option<PropMap>
     }
     prop_map.insert(
         "compression".to_string(),
-        Arc::new(ch_buf.split_to(compression_method_len as usize)),
+        serde_json::Value::Array(
+            ch_buf
+                .split_to(compression_method_len as usize)
+                .iter()
+                .copied()
+                .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                .collect(),
+        ),
     );
 
     if ch_buf.len() < 2 {
@@ -223,17 +251,39 @@ pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap>
     let mut prop_map = PropMap::new();
     // Version, random & session ID length combined are within 35 bytes,
     // so no need for bounds checking
-    prop_map.insert("version".to_string(), Arc::new(sh_buf.get_u16()));
-    prop_map.insert("random".to_string(), Arc::new(sh_buf.split_to(32)));
+    prop_map.insert(
+        "version".to_string(),
+        serde_json::Value::Number(serde_json::Number::from(sh_buf.get_u16())),
+    );
+    prop_map.insert(
+        "random".to_string(),
+        serde_json::Value::Array(
+            sh_buf
+                .split_to(32)
+                .iter()
+                .copied()
+                .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                .collect(),
+        ),
+    );
+
     let session_id_len = sh_buf.get_u8();
 
     if sh_buf.len() < session_id_len as usize {
         error!("No enough data for session");
         return None;
     }
+
     prop_map.insert(
         "session".to_string(),
-        Arc::new(sh_buf.split_to(session_id_len as usize)),
+        serde_json::Value::Array(
+            sh_buf
+                .split_to(session_id_len as usize)
+                .iter()
+                .copied()
+                .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                .collect(),
+        ),
     );
 
     if sh_buf.len() < 2 {
@@ -241,14 +291,20 @@ pub fn parse_tls_server_hello_msg_data(sh_buf: &mut BytesMut) -> Option<PropMap>
         return None;
     }
     let cipher_suite = sh_buf.get_u16();
-    prop_map.insert("cipher".to_string(), Arc::new(cipher_suite));
+    prop_map.insert(
+        "cipher".to_string(),
+        serde_json::Value::Number(serde_json::Number::from(cipher_suite)),
+    );
 
     if sh_buf.is_empty() {
         error!("No enough data for compression method");
         return None;
     }
     let compression_method = sh_buf.get_u8();
-    prop_map.insert("compression".to_string(), Arc::new(compression_method));
+    prop_map.insert(
+        "compression".to_string(),
+        serde_json::Value::Number(serde_json::Number::from(compression_method)),
+    );
 
     if sh_buf.len() < 2 {
         error!("No extensions, maybe possible");
@@ -333,7 +389,14 @@ pub fn parse_tls_extensions(
 
             prop_map.insert(
                 "sni".to_string(),
-                Arc::new(ext_data_buf.split_to(sni_len as usize)),
+                serde_json::Value::Array(
+                    ext_data_buf
+                        .split_to(sni_len as usize)
+                        .iter()
+                        .copied()
+                        .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                        .collect(),
+                ),
             );
         }
         EXT_ALPN => {
@@ -361,14 +424,23 @@ pub fn parse_tls_extensions(
                 alpn_list.extend(alpn);
             }
 
-            prop_map.insert("alpn".to_string(), Arc::new(alpn_list));
+            prop_map.insert(
+                "alpn".to_string(),
+                serde_json::Value::Array(
+                    alpn_list
+                        .iter()
+                        .copied()
+                        .map(|b| serde_json::Value::Number(serde_json::Number::from(b)))
+                        .collect(),
+                ),
+            );
         }
         EXT_SUPPORTED_VERSIONS => {
             if ext_data_buf.len() == 2 {
                 // Server only selects one version
                 prop_map.insert(
                     "supported_versions".to_string(),
-                    Arc::new(ext_data_buf.get_u16()),
+                    serde_json::Value::Number(serde_json::Number::from(ext_data_buf.get_u16())),
                 );
             } else {
                 // Client sends a list of versions
@@ -387,16 +459,20 @@ pub fn parse_tls_extensions(
                         error!("No enough data for version");
                         return false;
                     }
-                    let ver = ext_data_buf.get_u16();
+                    let ver =
+                        serde_json::Value::Number(serde_json::Number::from(ext_data_buf.get_u16()));
                     versions.push(ver);
                 }
 
-                prop_map.insert("supported_versions".to_string(), Arc::new(versions));
+                prop_map.insert(
+                    "supported_versions".to_string(),
+                    serde_json::Value::Array(versions),
+                );
             }
         }
         EXT_ENCRYPTED_CLIENT_HELLO => {
             // We can't parse ECH for now, just set a flag
-            prop_map.insert("ech".to_string(), Arc::new(true));
+            prop_map.insert("ech".to_string(), serde_json::Value::Bool(true));
         }
         _ => {
             //info!(
@@ -435,55 +511,30 @@ mod tests {
 
         let prop_map = parse_tls_client_hello_msg_data(&mut ch_buf).unwrap();
 
+        assert_eq!(prop_map.get("version").unwrap(), &0x0303);
         assert_eq!(
-            prop_map
-                .get("version")
-                .unwrap()
-                .downcast_ref::<u16>()
-                .unwrap(),
-            &0x0303
-        );
-        assert_eq!(
-            prop_map
-                .get("random")
-                .unwrap()
-                .downcast_ref::<BytesMut>()
-                .unwrap(),
-            &BytesMut::from(
-                &[
-                    0x52, 0x36, 0x2c, 0x10, 0x12, 0xcf, 0x23, 0x62, 0x82, 0x56, 0xe7, 0x45, 0xe9,
-                    0x3, 0xce, 0xa6, 0x96, 0xe9, 0xf6, 0x2a, 0x60, 0xba, 0xa, 0xe8, 0x31, 0x1d,
-                    0x70, 0xde, 0xa5, 0xe4, 0x19, 0x49
-                ][..]
-            )
+            prop_map.get("random").unwrap().as_array().unwrap(),
+            &[
+                0x52, 0x36, 0x2c, 0x10, 0x12, 0xcf, 0x23, 0x62, 0x82, 0x56, 0xe7, 0x45, 0xe9, 0x3,
+                0xce, 0xa6, 0x96, 0xe9, 0xf6, 0x2a, 0x60, 0xba, 0xa, 0xe8, 0x31, 0x1d, 0x70, 0xde,
+                0xa5, 0xe4, 0x19, 0x49
+            ]
         );
 
         if prop_map.contains_key("session") {
             assert_eq!(
-                prop_map
-                    .get("session")
-                    .unwrap()
-                    .downcast_ref::<BytesMut>()
-                    .unwrap(),
-                &BytesMut::from(&[][..])
+                prop_map.get("session").unwrap().as_array().unwrap(),
+                &Vec::<serde_json::Value>::new()
             );
         }
 
         assert_eq!(
-            prop_map
-                .get("ciphers")
-                .unwrap()
-                .downcast_ref::<Vec<u16>>()
-                .unwrap(),
+            prop_map.get("ciphers").unwrap().as_array().unwrap(),
             &vec![0xc030, 0x00ff]
         );
         assert_eq!(
-            prop_map
-                .get("compression")
-                .unwrap()
-                .downcast_ref::<BytesMut>()
-                .unwrap(),
-            &BytesMut::from(&[0x1, 0x0][..])
+            prop_map.get("compression").unwrap().as_array().unwrap(),
+            &[0x1, 0x0]
         );
     }
 
@@ -513,57 +564,24 @@ mod tests {
 
         let prop_map = parse_tls_server_hello_msg_data(&mut sh_buf).unwrap();
 
+        assert_eq!(prop_map.get("version").unwrap(), &0x0303);
         assert_eq!(
-            prop_map
-                .get("version")
-                .unwrap()
-                .downcast_ref::<u16>()
-                .unwrap(),
-            &0x0303
+            prop_map.get("random").unwrap().as_array().unwrap(),
+            &[
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+                0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+                0x1c, 0x1d, 0x1e, 0x1f
+            ]
         );
         assert_eq!(
-            prop_map
-                .get("random")
-                .unwrap()
-                .downcast_ref::<BytesMut>()
-                .unwrap(),
-            &BytesMut::from(
-                &[
-                    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
-                    0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-                    0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
-                ][..]
-            )
+            prop_map.get("session").unwrap().as_array().unwrap(),
+            &[
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+                0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+                0x1c, 0x1d, 0x1e, 0x1f
+            ]
         );
-        assert_eq!(
-            prop_map
-                .get("session")
-                .unwrap()
-                .downcast_ref::<BytesMut>()
-                .unwrap(),
-            &BytesMut::from(
-                &[
-                    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c,
-                    0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
-                    0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
-                ][..]
-            )
-        );
-        assert_eq!(
-            prop_map
-                .get("cipher")
-                .unwrap()
-                .downcast_ref::<u16>()
-                .unwrap(),
-            &0x002f
-        );
-        assert_eq!(
-            prop_map
-                .get("compression")
-                .unwrap()
-                .downcast_ref::<u8>()
-                .unwrap(),
-            &0x00
-        );
+        assert_eq!(prop_map.get("cipher").unwrap(), &0x002f);
+        assert_eq!(prop_map.get("compression").unwrap(), &0x00);
     }
 }

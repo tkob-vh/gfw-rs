@@ -108,10 +108,13 @@ impl HTTPStream {
             if !version.starts_with("HTTP/") {
                 return utils::lsm::LSMAction::Cancel;
             }
-            self.req_map.insert("method".to_string(), Arc::new(method));
-            self.req_map.insert("path".to_string(), Arc::new(path));
             self.req_map
-                .insert("version".to_string(), Arc::new(version));
+                .insert("method".to_string(), serde_json::Value::String(method));
+            self.req_map
+                .insert("path".to_string(), serde_json::Value::String(path));
+            self.req_map
+                .insert("version".to_string(), serde_json::Value::String(version));
+
             self.req_updated = true;
             self.req_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
@@ -132,9 +135,14 @@ impl HTTPStream {
             if !version.starts_with("HTTP/") || status == 0 {
                 return utils::lsm::LSMAction::Cancel;
             }
+
             self.resp_map
-                .insert("version".to_string(), Arc::new(version));
-            self.resp_map.insert("status".to_string(), Arc::new(status));
+                .insert("version".to_string(), serde_json::Value::String(version));
+
+            self.resp_map.insert(
+                "status".to_string(),
+                serde_json::Value::Number(serde_json::Number::from(status)),
+            );
             self.resp_updated = true;
             self.resp_buf = remaining; // Update the buffer with the remaining data
             utils::lsm::LSMAction::Next
@@ -157,7 +165,7 @@ impl HTTPStream {
                 }
                 let key = String::from_utf8_lossy(parts[0]).trim().to_lowercase();
                 let value = String::from_utf8_lossy(parts[1]).trim().to_string();
-                header_map.insert(key, Arc::new(value));
+                header_map.insert(key, serde_json::Value::String(value));
             }
             (utils::lsm::LSMAction::Next, header_map)
         } else {
@@ -169,7 +177,8 @@ impl HTTPStream {
         let (action, header_map) = Self::parse_headers(&mut self.req_buf);
         if action == utils::lsm::LSMAction::Next {
             self.req_map
-                .insert("headers".to_string(), Arc::new(header_map));
+                .insert("headers".to_string(), serde_json::Value::Object(header_map));
+
             self.req_updated = true;
         }
         action
@@ -179,7 +188,8 @@ impl HTTPStream {
         let (action, header_map) = Self::parse_headers(&mut self.resp_buf);
         if action == utils::lsm::LSMAction::Next {
             self.resp_map
-                .insert("headers".to_string(), Arc::new(header_map));
+                .insert("headers".to_string(), serde_json::Value::Object(header_map));
+
             self.resp_updated = true;
         }
         action
@@ -257,35 +267,75 @@ impl TCPStream for HTTPStream {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
 
-    use crate::{PropMap, TCPStream};
+    use crate::TCPStream;
 
     #[test]
     fn test_http_parsing_request() {
         let test_cases = vec![
             ("GET / HTTP/1.1\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Arc::new("GET".to_string()));
-                map.insert("path".to_string(), Arc::new("/".to_string()));
-                map.insert("version".to_string(), Arc::new("HTTP/1.1".to_string()));
-                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
+                map.insert(
+                    "method".to_string(),
+                    serde_json::Value::String("GET".to_string()),
+                );
+                map.insert(
+                    "path".to_string(),
+                    serde_json::Value::String("/".to_string()),
+                );
+                map.insert(
+                    "version".to_string(),
+                    serde_json::Value::String("HTTP/1.1".to_string()),
+                );
+                map.insert(
+                    "headers".to_string(),
+                    serde_json::Value::Object(crate::PropMap::new()),
+                );
+
                 map
             }),
             ("POST /hello?a=1&b=2 HTTP/1.0\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Arc::new("POST".to_string()));
-                map.insert("path".to_string(), Arc::new("/hello?a=1&b=2".to_string()));
-                map.insert("version".to_string(), Arc::new("HTTP/1.0".to_string()));
-                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
+
+                map.insert(
+                    "method".to_string(),
+                    serde_json::Value::String("POST".to_string()),
+                );
+                map.insert(
+                    "path".to_string(),
+                    serde_json::Value::String("/hello?a=1&b=2".to_string()),
+                );
+                map.insert(
+                    "version".to_string(),
+                    serde_json::Value::String("HTTP/1.0".to_string()),
+                );
+                map.insert(
+                    "headers".to_string(),
+                    serde_json::Value::Object(crate::PropMap::new()),
+                );
+
                 map
             }),
             ("DELETE /goodbye HTTP/2.0\r\n", {
                 let mut map = crate::PropMap::new();
-                map.insert("method".to_string(), Arc::new("DELETE".to_string()));
-                map.insert("path".to_string(), Arc::new("/goodbye".to_string()));
-                map.insert("version".to_string(), Arc::new("HTTP/2.0".to_string()));
-                map.insert("headers".to_string(), Arc::new(crate::PropMap::new()));
+
+                map.insert(
+                    "method".to_string(),
+                    serde_json::Value::String("DELETE".to_string()),
+                );
+                map.insert(
+                    "path".to_string(),
+                    serde_json::Value::String("/goodbye".to_string()),
+                );
+                map.insert(
+                    "version".to_string(),
+                    serde_json::Value::String("HTTP/2.0".to_string()),
+                );
+                map.insert(
+                    "headers".to_string(),
+                    serde_json::Value::Object(crate::PropMap::new()),
+                );
+
                 map
             }),
         ];
@@ -298,22 +348,16 @@ mod tests {
             // Check method
             let method = result_map.get("method").unwrap();
             let want_method = want.get("method").unwrap();
-            let method = method.downcast_ref::<String>().unwrap();
-            let want_method = want_method.downcast_ref::<String>().unwrap();
             assert_eq!(method, want_method);
 
             // Check path
             let path = result_map.get("path").unwrap();
             let want_path = want.get("path").unwrap();
-            let path = path.downcast_ref::<String>().unwrap();
-            let want_path = want_path.downcast_ref::<String>().unwrap();
             assert_eq!(path, want_path);
 
             // Check version
             let version = result_map.get("version").unwrap();
             let want_version = want.get("version").unwrap();
-            let version = version.downcast_ref::<String>().unwrap();
-            let want_version = want_version.downcast_ref::<String>().unwrap();
             assert_eq!(version, want_version);
         }
     }
@@ -322,13 +366,27 @@ mod tests {
     fn test_http_1() {
         let input = ("PUT /world HTTP/1.1\r\nContent-Length: 4\r\n\r\nbody", {
             let mut map = crate::PropMap::new();
-            map.insert("method".to_string(), Arc::new("PUT".to_string()));
-            map.insert("path".to_string(), Arc::new("/world".to_string()));
-            map.insert("version".to_string(), Arc::new("HTTP/1.1".to_string()));
+
+            map.insert(
+                "method".to_string(),
+                serde_json::Value::String("PUT".to_string()),
+            );
+            map.insert(
+                "path".to_string(),
+                serde_json::Value::String("/world".to_string()),
+            );
+            map.insert(
+                "version".to_string(),
+                serde_json::Value::String("HTTP/1.1".to_string()),
+            );
+
             {
-                let mut headers = HashMap::new();
-                headers.insert("content-length".to_string(), "4".to_string());
-                map.insert("headers".to_string(), Arc::new(headers));
+                let mut headers = serde_json::Map::new();
+                headers.insert(
+                    "content-length".to_string(),
+                    serde_json::Value::String("4".to_string()),
+                );
+                map.insert("headers".to_string(), serde_json::Value::Object(headers));
             }
             map
         });
@@ -340,42 +398,26 @@ mod tests {
         // Check method
         let method = result_map.get("method").unwrap();
         let want_method = want.get("method").unwrap();
-        let method = method.downcast_ref::<String>().unwrap();
-        let want_method = want_method.downcast_ref::<String>().unwrap();
         assert_eq!(method, want_method);
 
         // Check path
         let path = result_map.get("path").unwrap();
         let want_path = want.get("path").unwrap();
-        let path = path.downcast_ref::<String>().unwrap();
-        let want_path = want_path.downcast_ref::<String>().unwrap();
         assert_eq!(path, want_path);
 
         // Check version
         let version = result_map.get("version").unwrap();
         let want_version = want.get("version").unwrap();
-        let version = version.downcast_ref::<String>().unwrap();
-        let want_version = want_version.downcast_ref::<String>().unwrap();
         assert_eq!(version, want_version);
 
         // Check headers
         let expected_headers = want.get("headers").unwrap();
         let headers = result_map.get("headers").unwrap();
 
-        // Extract the headers HashMap from Arc<dyn Any>
-        let result_headers = headers.downcast_ref::<PropMap>().unwrap();
-        let expected_headers_map = expected_headers
-            .downcast_ref::<HashMap<String, String>>()
-            .unwrap();
-
         // check content-length
         assert_eq!(
-            result_headers
-                .get("content-length")
-                .unwrap()
-                .downcast_ref::<String>()
-                .unwrap(),
-            expected_headers_map.get("content-length").unwrap()
+            headers.get("content-length").unwrap(),
+            expected_headers.get("content-length").unwrap()
         );
     }
 }
