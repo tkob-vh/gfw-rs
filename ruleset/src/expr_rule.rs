@@ -1,8 +1,8 @@
 //! This module contains the definition of an expression rule and the logic to read and compile them.
 use crate::Action;
-use nt_analyzer::extract_json_from_combinedpropmap;
-use nt_analyzer::Analyzer;
-use nt_modifier::{Instance, Modifier};
+use gfw_analyzer::extract_json_from_combinedpropmap;
+use gfw_analyzer::Analyzer;
+use gfw_modifier::{Instance, Modifier};
 use rhai::Dynamic;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

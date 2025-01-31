@@ -30,12 +30,12 @@ pub enum TCPVerdict {
     DropStream,
 }
 
-impl From<TCPVerdict> for nt_io::Verdict {
+impl From<TCPVerdict> for gfw_io::Verdict {
     fn from(value: TCPVerdict) -> Self {
         match value {
-            TCPVerdict::Accept => nt_io::Verdict::Accept,
-            TCPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
-            TCPVerdict::DropStream => nt_io::Verdict::DropStream,
+            TCPVerdict::Accept => gfw_io::Verdict::Accept,
+            TCPVerdict::AcceptStream => gfw_io::Verdict::AcceptStream,
+            TCPVerdict::DropStream => gfw_io::Verdict::DropStream,
         }
     }
 }
@@ -55,7 +55,7 @@ pub struct TCPStreamFactory {
     pub node: SnowflakeIdGenerator,
 
     /// The ruleset for the tcp stream entries.
-    ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
+    ruleset: RwLock<Arc<dyn gfw_ruleset::Ruleset>>,
 }
 
 impl TCPStreamFactory {
@@ -69,7 +69,7 @@ impl TCPStreamFactory {
     pub fn new(
         worker_id: u32,
         node: SnowflakeIdGenerator,
-        ruleset: RwLock<Arc<dyn nt_ruleset::Ruleset>>,
+        ruleset: RwLock<Arc<dyn gfw_ruleset::Ruleset>>,
     ) -> Self {
         Self {
             worker_id,
@@ -106,14 +106,14 @@ impl TCPStreamFactory {
         let dst_port = tcp_packet.get_destination();
 
         // Construct the stream info for the ruleset.
-        let info = nt_ruleset::StreamInfo {
+        let info = gfw_ruleset::StreamInfo {
             id,
-            protocol: nt_ruleset::Protocol::TCP,
+            protocol: gfw_ruleset::Protocol::TCP,
             src_ip,
             dst_ip,
             src_port,
             dst_port,
-            props: nt_analyzer::CombinedPropMap::new(),
+            props: gfw_analyzer::CombinedPropMap::new(),
         };
 
         debug!(
@@ -133,7 +133,7 @@ impl TCPStreamFactory {
             .iter()
             .map(|a| TCPStreamEntry {
                 name: a.name().to_string(),
-                stream: a.new_tcp(nt_analyzer::TCPInfo {
+                stream: a.new_tcp(gfw_analyzer::TCPInfo {
                     src_ip,
                     dst_ip,
                     src_port,
@@ -165,7 +165,7 @@ impl TCPStreamFactory {
     /// A result indicating success or failure.
     pub async fn update_ruleset(
         &self,
-        new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
+        new_ruleset: Arc<dyn gfw_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut ruleset = self.ruleset.write().await;
         *ruleset = new_ruleset;
@@ -382,13 +382,13 @@ impl TCPStreamValue {
 /// TCPStream contains many entries.
 struct TCPStream {
     /// The stream info for the ruleset.
-    info: nt_ruleset::StreamInfo,
+    info: gfw_ruleset::StreamInfo,
 
     /// True if no packets have been processed.
     virgin: bool,
 
     /// The ruleset for the tcp stream.
-    ruleset: Arc<dyn nt_ruleset::Ruleset>,
+    ruleset: Arc<dyn gfw_ruleset::Ruleset>,
 
     /// The unprocessed stream entries.
     active_entries: Vec<TCPStreamEntry>,
@@ -489,7 +489,7 @@ impl TCPStream {
             let result = self.ruleset.matches(&self.info);
 
             match result.action {
-                nt_ruleset::Action::Maybe | nt_ruleset::Action::Modify => {}
+                gfw_ruleset::Action::Maybe | gfw_ruleset::Action::Modify => {}
                 action => {
                     let verdict = action_to_tcp_verdict(&action);
                     self.last_verdict = verdict.clone();
@@ -520,7 +520,7 @@ impl TCPStream {
                 self.info.src_port,
                 self.info.dst_ip,
                 self.info.dst_port,
-                nt_ruleset::Action::Allow,
+                gfw_ruleset::Action::Allow,
             );
         }
     }
@@ -547,8 +547,8 @@ impl TCPStream {
         skip: usize,
         data: &[u8],
     ) -> (
-        Option<nt_analyzer::PropUpdate>,
-        Option<nt_analyzer::PropUpdate>,
+        Option<gfw_analyzer::PropUpdate>,
+        Option<gfw_analyzer::PropUpdate>,
         bool,
     ) {
         if !entry.has_limit {
@@ -610,7 +610,7 @@ struct TCPStreamEntry {
     name: String,
 
     /// The tcp stream created by the analyzers (new_tcp(..)).
-    stream: Box<dyn nt_analyzer::TCPStream>,
+    stream: Box<dyn gfw_analyzer::TCPStream>,
 
     /// If the stream has any byte limit.
     has_limit: bool,
@@ -629,24 +629,27 @@ struct TCPStreamEntry {
 ///
 /// A vector of Arc-wrapped TCPAnalyzer trait objects.
 fn analyzers_to_tcp_analyzers(
-    analyzers: &[Arc<dyn nt_analyzer::Analyzer>],
-) -> Vec<Arc<dyn nt_analyzer::TCPAnalyzer>> {
+    analyzers: &[Arc<dyn gfw_analyzer::Analyzer>],
+) -> Vec<Arc<dyn gfw_analyzer::TCPAnalyzer>> {
     analyzers
         .iter()
         .filter_map(|analyzer| {
             // Downcast to specific types that implement TCPAnalyzer
             if analyzer
                 .as_any()
-                .is::<nt_analyzer::tcp::http::HTTPAnalyzer>()
+                .is::<gfw_analyzer::tcp::http::HTTPAnalyzer>()
             {
                 // Clone the original Arc and cast it
-                Some(Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new())
-                    as Arc<dyn nt_analyzer::TCPAnalyzer>)
+                Some(Arc::new(gfw_analyzer::tcp::http::HTTPAnalyzer::new())
+                    as Arc<dyn gfw_analyzer::TCPAnalyzer>)
             }
             // Add other TCP analyzers here with else if blocks
-            else if analyzer.as_any().is::<nt_analyzer::tcp::tls::TLSAnalyzer>() {
-                Some(Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new())
-                    as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            else if analyzer
+                .as_any()
+                .is::<gfw_analyzer::tcp::tls::TLSAnalyzer>()
+            {
+                Some(Arc::new(gfw_analyzer::tcp::tls::TLSAnalyzer::new())
+                    as Arc<dyn gfw_analyzer::TCPAnalyzer>)
             }
             // } else if analyzer.as_any().is::<nt_analyzer::tcp::ssh::SSHAnalyzer>() {
             //     Some(Arc::new(nt_analyzer::tcp::ssh::SSHAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
@@ -667,12 +670,12 @@ fn analyzers_to_tcp_analyzers(
 /// # Returns
 ///
 /// The corresponding TCPVerdict.
-fn action_to_tcp_verdict(action: &nt_ruleset::Action) -> TCPVerdict {
+fn action_to_tcp_verdict(action: &gfw_ruleset::Action) -> TCPVerdict {
     match action {
-        nt_ruleset::Action::Maybe | nt_ruleset::Action::Allow | nt_ruleset::Action::Modify => {
+        gfw_ruleset::Action::Maybe | gfw_ruleset::Action::Allow | gfw_ruleset::Action::Modify => {
             TCPVerdict::AcceptStream
         }
-        nt_ruleset::Action::Block | nt_ruleset::Action::Drop => TCPVerdict::DropStream,
+        gfw_ruleset::Action::Block | gfw_ruleset::Action::Drop => TCPVerdict::DropStream,
     }
 }
 
@@ -692,11 +695,11 @@ mod tests {
             .with_ansi(true)
             .init();
 
-        let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
-            Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+        let analyzers: Vec<Arc<dyn gfw_analyzer::Analyzer>> = vec![
+            Arc::new(gfw_analyzer::tcp::http::HTTPAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::dns::DNSAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
         ];
 
         let tcp_analyzers = analyzers_to_tcp_analyzers(&analyzers);

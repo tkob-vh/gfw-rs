@@ -24,8 +24,8 @@ CONTAINER_RUNTIME=$(get_container_runtime)
 red_echo "(build/clean):"
 read ACTION
 
-IMAGE_NAME="nt-secure:latest"
-CONTAINER_NAME="nt-secure"
+IMAGE_NAME="gfw-secure:latest"
+CONTAINER_NAME="gfw-secure"
 
 if [ "$ACTION" == "build" ]; then
   red_echo "Building $CONTAINER_RUNTIME image..."
@@ -38,8 +38,7 @@ if [ "$ACTION" == "build" ]; then
 
   red_echo "Running $CONTAINER_RUNTIME container..."
   if $CONTAINER_RUNTIME run -d -p 3000:3000 \
-    --cap-add=NET_ADMIN --cap-add=NET_RAW\
-    --volume $(pwd):/app \
+    --cap-add=NET_ADMIN --cap-add=NET_RAW --volume $(pwd):/app \
     --name $CONTAINER_NAME $IMAGE_NAME; then
     red_echo "$CONTAINER_RUNTIME container started successfully."
     # $CONTAINER_RUNTIME exec --detach --workdir /app $CONTAINER_NAME bash -c 'cargo build --release && cargo run --bin apiserver'

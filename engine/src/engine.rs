@@ -16,7 +16,7 @@ use crate::{
 
 /// The gfw engine
 pub struct Engine {
-    io: Arc<dyn nt_io::PacketIO>,
+    io: Arc<dyn gfw_io::PacketIO>,
 
     /// The workers.
     workers: Vec<Worker>,
@@ -83,8 +83,8 @@ impl crate::Engine for Engine {
         service_tx: tokio::sync::watch::Sender<bool>,
         config_tx: tokio::sync::watch::Sender<()>,
         ruleset_file: String,
-        analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
-        modifiers: Vec<Arc<dyn nt_modifier::Modifier>>,
+        analyzers: Vec<Arc<dyn gfw_analyzer::Analyzer>>,
+        modifiers: Vec<Arc<dyn gfw_modifier::Modifier>>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (err_tx, mut err_rx) = mpsc::channel::<Box<dyn Error + Send + Sync>>(1);
         let (rs_tx, mut _rs_rx) = tokio::sync::broadcast::channel(self.workers.len());
@@ -108,8 +108,8 @@ impl crate::Engine for Engine {
 
         debug!("Create packet handler");
 
-        let packet_handler: nt_io::PacketCallback = Box::new(
-            move |packet: Box<dyn nt_io::Packet>, err: Option<Box<dyn Error + Send + Sync>>| {
+        let packet_handler: gfw_io::PacketCallback = Box::new(
+            move |packet: Box<dyn gfw_io::Packet>, err: Option<Box<dyn Error + Send + Sync>>| {
                 let worker_senders = worker_senders.clone();
                 let err_tx = err_tx.clone();
                 let io = io.clone();
@@ -147,12 +147,12 @@ impl crate::Engine for Engine {
                 }
                 Ok(_) = config_rx.changed() => {
                     info!("Configuration changed, updating the ruleset...");
-                    match nt_ruleset::expr_rule::read_expr_rules_from_file(&ruleset_file).await {
+                    match gfw_ruleset::expr_rule::read_expr_rules_from_file(&ruleset_file).await {
                         Ok(raw_rs) => {
 
                             debug!("rules: {:?}", raw_rs);
                             let new_engine = Arc::new(rhai::Engine::new());
-                            let rs = nt_ruleset::expr_rule::compile_expr_rules(
+                            let rs = gfw_ruleset::expr_rule::compile_expr_rules(
                                 raw_rs,
                                 &analyzers,
                                 &modifiers,
@@ -184,9 +184,9 @@ impl Engine {
     ///
     /// * `bool` - Returns `true` if the packet was successfully dispatched, or `false` on failure.
     async fn dispatch(
-        packet: Box<dyn nt_io::Packet>,
+        packet: Box<dyn gfw_io::Packet>,
         worker_senders: &[mpsc::Sender<WorkerPacket>],
-        io: Arc<dyn nt_io::PacketIO>,
+        io: Arc<dyn gfw_io::PacketIO>,
     ) -> bool {
         let data = packet.data();
         if data.is_empty() {
@@ -215,7 +215,7 @@ impl Engine {
                 debug!("Unsupported network layer - accept stream");
                 // TODO: Check the Vec::new().
                 if let Err(e) = io
-                    .set_verdict(packet, nt_io::Verdict::AcceptStream, Vec::new())
+                    .set_verdict(packet, gfw_io::Verdict::AcceptStream, Vec::new())
                     .await
                 {
                     error!("Failed to set verdict: {}", e);
@@ -232,7 +232,7 @@ impl Engine {
             stream_id,
             packet: packet_data,
             set_verdict: Box::new(
-                move |verdict: nt_io::Verdict, modified_data: Option<Vec<u8>>| {
+                move |verdict: gfw_io::Verdict, modified_data: Option<Vec<u8>>| {
                     let io = io.clone();
                     let fut = async move {
                         io.set_verdict(packet, verdict, modified_data.unwrap_or_default())

@@ -6,7 +6,7 @@ use axum::{
     routing::{get, post},
     Extension, Router,
 };
-use nt_engine::Engine;
+use gfw_engine::Engine;
 use snafu::ResultExt;
 use std::{sync::Arc, time::Duration};
 use tracing::debug;
@@ -39,7 +39,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
     if server_config.io_impl.is_none() {
         info!("Setup IO for nfqueue...");
         server_config.io_impl = Some(Arc::new(
-            nt_io::nfqueue::NFQueuePacketIO::new(nt_io::nfqueue::NFQueuePacketIOConfig {
+            gfw_io::nfqueue::NFQueuePacketIO::new(gfw_io::nfqueue::NFQueuePacketIOConfig {
                 queue_size: server_config.config.io.queue_size,
                 local: server_config.config.io.local,
                 rst: server_config.config.io.rst,
@@ -50,7 +50,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
         ));
     }
 
-    let engine_config = nt_engine::Config {
+    let engine_config = gfw_engine::Config {
         workers: server_config.config.workers.count,
         worker_queue_size: server_config.config.workers.queue_size,
         worker_tcp_max_buffered_pages_total: server_config
@@ -68,7 +68,7 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
             message: "Ruleset not found".to_string(),
         })?,
     };
-    let mut engine = nt_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
+    let mut engine = gfw_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
 
     info!("Engine started");
 

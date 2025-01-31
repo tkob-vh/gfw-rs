@@ -10,8 +10,8 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
-use nt_io::PacketIO;
-use nt_ruleset::Ruleset;
+use gfw_io::PacketIO;
+use gfw_ruleset::Ruleset;
 
 /// Engine is the main engine for gfw-rs.
 #[async_trait::async_trait]
@@ -23,8 +23,8 @@ pub trait Engine {
         service_tx: tokio::sync::watch::Sender<bool>,
         config_tx: tokio::sync::watch::Sender<()>,
         ruleset_file: String,
-        analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>>,
-        modifier: Vec<Arc<dyn nt_modifier::Modifier>>,
+        analyzers: Vec<Arc<dyn gfw_analyzer::Analyzer>>,
+        modifier: Vec<Arc<dyn gfw_modifier::Modifier>>,
     ) -> Result<(), Box<dyn Error + Send + Sync>>;
 }
 
