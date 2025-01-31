@@ -1,5 +1,5 @@
-use nt_analyzer::Analyzer;
-use nt_modifier::Instance;
+use gfw_analyzer::Analyzer;
+use gfw_modifier::Instance;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug};
 use std::net::IpAddr;
@@ -41,7 +41,7 @@ pub struct StreamInfo {
     pub src_port: u16,
     pub dst_ip: IpAddr,
     pub dst_port: u16,
-    pub props: nt_analyzer::CombinedPropMap,
+    pub props: gfw_analyzer::CombinedPropMap,
 }
 
 pub struct MatchResult {

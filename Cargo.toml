@@ -30,9 +30,9 @@ snafu = "0.8.5"
 notify = "7.0.0"
 
 ## workspace members
-nt-analyzer = { package = "analyzer", path = 'analyzer' }
-nt-cmd = { package = "cmd", path = 'cmd' }
-nt-engine = { package = "engine", path = 'engine' }
-nt-io = { package = "io", path = 'io' }
-nt-modifier = { package = "modifier", path = 'modifier' }
-nt-ruleset = { package = "ruleset", path = 'ruleset' }
+gfw-analyzer = { package = "analyzer", path = 'analyzer' }
+gfw-cmd = { package = "cmd", path = 'cmd' }
+gfw-engine = { package = "engine", path = 'engine' }
+gfw-io = { package = "io", path = 'io' }
+gfw-modifier = { package = "modifier", path = 'modifier' }
+gfw-ruleset = { package = "ruleset", path = 'ruleset' }

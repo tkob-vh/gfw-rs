@@ -1,7 +1,7 @@
 //! Utils used in the engine crate.
 //!
 
-use nt_analyzer::{self, CombinedPropMap, PropUpdate, PropUpdateType};
+use gfw_analyzer::{self, CombinedPropMap, PropUpdate, PropUpdateType};
 
 /// Processes a property update on the given CombinedPropMap.
 ///
@@ -56,7 +56,7 @@ pub fn process_prop_update(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nt_analyzer::{CombinedPropMap, PropMap, PropUpdate, PropUpdateType};
+    use gfw_analyzer::{CombinedPropMap, PropMap, PropUpdate, PropUpdateType};
     use serde_json::json;
 
     #[test]

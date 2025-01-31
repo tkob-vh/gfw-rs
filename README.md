@@ -24,8 +24,13 @@ See [this issue](https://github.com/tkob-vh/net-guardian/issues/22)
 ## How to run
 For now, you can execute
 ```
-cargo run --bin cmd -- --config-file config.yaml --ruleset-file rules.yaml --log-level debug
+cargo run --release --bin cmd -- --config-file config.yaml --ruleset-file rules.yaml --log-level info
 ```
 to run this program.
+If you want to test it in docker, you can run `docker.sh` to build the docker image, and then run
+```sh
+docker exec -it gfw-rs /bin/bash
+```
+
 
 For the frontend, we are currently refactoring it so it is not stable now.

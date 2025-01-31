@@ -7,7 +7,7 @@ use std::{error::Error, net::IpAddr, num::NonZero, ops::Deref, sync::Arc};
 
 use bytes::BytesMut;
 use lru::LruCache;
-use nt_modifier::UDPModifierInstance;
+use gfw_modifier::UDPModifierInstance;
 use pnet::packet::{udp::MutableUdpPacket, MutablePacket, Packet};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -25,14 +25,14 @@ pub enum UDPVerdict {
     DropStream,
 }
 
-impl From<UDPVerdict> for nt_io::Verdict {
+impl From<UDPVerdict> for gfw_io::Verdict {
     fn from(value: UDPVerdict) -> Self {
         match value {
-            UDPVerdict::Accept => nt_io::Verdict::Accept,
-            UDPVerdict::AcceptModify => nt_io::Verdict::AcceptModify,
-            UDPVerdict::AcceptStream => nt_io::Verdict::AcceptStream,
-            UDPVerdict::Drop => nt_io::Verdict::Drop,
-            UDPVerdict::DropStream => nt_io::Verdict::DropStream,
+            UDPVerdict::Accept => gfw_io::Verdict::Accept,
+            UDPVerdict::AcceptModify => gfw_io::Verdict::AcceptModify,
+            UDPVerdict::AcceptStream => gfw_io::Verdict::AcceptStream,
+            UDPVerdict::Drop => gfw_io::Verdict::Drop,
+            UDPVerdict::DropStream => gfw_io::Verdict::DropStream,
         }
     }
 }
@@ -52,7 +52,7 @@ pub struct UDPStreamFactory {
     node: snowflake::SnowflakeIdGenerator,
 
     /// The ruleset for the tcp stream entries.
-    ruleset: Arc<RwLock<Arc<dyn nt_ruleset::Ruleset>>>,
+    ruleset: Arc<RwLock<Arc<dyn gfw_ruleset::Ruleset>>>,
 }
 
 impl UDPStreamFactory {
@@ -66,7 +66,7 @@ impl UDPStreamFactory {
     pub fn new(
         worker_id: u32,
         node: snowflake::SnowflakeIdGenerator,
-        ruleset: Arc<dyn nt_ruleset::Ruleset>,
+        ruleset: Arc<dyn gfw_ruleset::Ruleset>,
     ) -> Self {
         Self {
             worker_id,
@@ -100,14 +100,14 @@ impl UDPStreamFactory {
         let dst_port = udp_packet.get_destination();
 
         // Construct the stream info for the ruleset.
-        let info = nt_ruleset::StreamInfo {
+        let info = gfw_ruleset::StreamInfo {
             id,
-            protocol: nt_ruleset::Protocol::UDP,
+            protocol: gfw_ruleset::Protocol::UDP,
             src_ip,
             dst_ip,
             src_port,
             dst_port,
-            props: nt_analyzer::CombinedPropMap::new(),
+            props: gfw_analyzer::CombinedPropMap::new(),
         };
 
         debug!(
@@ -127,7 +127,7 @@ impl UDPStreamFactory {
             .iter()
             .map(|a| UDPStreamEntry {
                 name: a.name().to_string(),
-                stream: a.new_udp(nt_analyzer::UDPInfo {
+                stream: a.new_udp(gfw_analyzer::UDPInfo {
                     src_ip,
                     src_port,
                     dst_ip,
@@ -159,7 +159,7 @@ impl UDPStreamFactory {
     /// A result indicating success or failure.
     pub async fn update_ruleset(
         &mut self,
-        new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
+        new_ruleset: Arc<dyn gfw_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut ruleset = self.ruleset.write().await;
         *ruleset = new_ruleset;
@@ -210,7 +210,7 @@ impl UDPStreamManager {
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
         udp_context: &mut UDPContext,
-    ) -> (nt_io::Verdict, Option<Vec<u8>>) {
+    ) -> (gfw_io::Verdict, Option<Vec<u8>>) {
         let mut reverse = false;
         let src_port = udp_packet.get_source();
         let dst_port = udp_packet.get_destination();
@@ -270,8 +270,8 @@ impl UDPStreamManager {
         }
 
         // Modify the payload of the packet and its checksum.
-        let verdict: nt_io::Verdict = udp_context.verdict.clone().into();
-        if matches!(verdict, nt_io::Verdict::AcceptModify) && !udp_context.packet.is_empty() {
+        let verdict: gfw_io::Verdict = udp_context.verdict.clone().into();
+        if matches!(verdict, gfw_io::Verdict::AcceptModify) && !udp_context.packet.is_empty() {
             udp_packet.set_payload(&udp_context.packet);
 
             match src_ip {
@@ -359,13 +359,13 @@ impl UDPStreamValue {
 pub struct UDPStream {
     /// The stream info for the ruleset.
     /// Such as id, protocal, address, port, and PropUpdate.
-    info: nt_ruleset::StreamInfo,
+    info: gfw_ruleset::StreamInfo,
 
     /// True if no packets have been processed
     virgin: bool,
 
     /// The ruleset for the udp stream.
-    pub ruleset: Arc<dyn nt_ruleset::Ruleset>,
+    pub ruleset: Arc<dyn gfw_ruleset::Ruleset>,
 
     /// The unprocessed stream entries.
     active_entries: Vec<UDPStreamEntry>,
@@ -459,17 +459,17 @@ impl UDPStream {
             let result = self.ruleset.matches(&self.info);
 
             match result.action {
-                nt_ruleset::Action::Modify => {
+                gfw_ruleset::Action::Modify => {
                     // Handle modification
                     if let Some(modifier) = result.modifier {
                         if modifier
                             .as_any()
-                            .is::<nt_modifier::udp::dns::DNSModifierInstance>()
+                            .is::<gfw_modifier::udp::dns::DNSModifierInstance>()
                         {
                             let modifier = Arc::new(
                                 modifier
                                     .as_any()
-                                    .downcast_ref::<nt_modifier::udp::dns::DNSModifierInstance>()
+                                    .downcast_ref::<gfw_modifier::udp::dns::DNSModifierInstance>()
                                     .unwrap()
                                     .clone(),
                             )
@@ -494,7 +494,7 @@ impl UDPStream {
                         }
                     }
                 }
-                nt_ruleset::Action::Maybe => {}
+                gfw_ruleset::Action::Maybe => {}
                 action => {
                     let (verdict, final_verdict) = action_to_udp_verdict(&action);
                     self.last_verdict = verdict.clone();
@@ -527,7 +527,7 @@ impl UDPStream {
                 self.info.src_port,
                 self.info.dst_ip,
                 self.info.dst_port,
-                nt_ruleset::Action::Allow,
+                gfw_ruleset::Action::Allow,
             );
         }
     }
@@ -548,8 +548,8 @@ impl UDPStream {
         reverse: bool,
         data: &[u8],
     ) -> (
-        Option<nt_analyzer::PropUpdate>,
-        Option<nt_analyzer::PropUpdate>,
+        Option<gfw_analyzer::PropUpdate>,
+        Option<gfw_analyzer::PropUpdate>,
         bool,
     ) {
         if !entry.has_limit {
@@ -610,7 +610,7 @@ struct UDPStreamEntry {
     name: String,
 
     /// The stream in crate analyzer.
-    stream: Box<dyn nt_analyzer::UDPStream>,
+    stream: Box<dyn gfw_analyzer::UDPStream>,
     has_limit: bool,
     quota: i32,
 }
@@ -624,13 +624,13 @@ struct UDPStreamEntry {
 /// # Returns
 ///
 /// A tuple containing the UDP verdict and a boolean indicating if the verdict is final.
-fn action_to_udp_verdict(action: &nt_ruleset::Action) -> (UDPVerdict, bool) {
+fn action_to_udp_verdict(action: &gfw_ruleset::Action) -> (UDPVerdict, bool) {
     match action {
-        nt_ruleset::Action::Maybe => (UDPVerdict::Accept, false),
-        nt_ruleset::Action::Allow => (UDPVerdict::AcceptStream, true),
-        nt_ruleset::Action::Block => (UDPVerdict::DropStream, true),
-        nt_ruleset::Action::Drop => (UDPVerdict::Drop, false),
-        nt_ruleset::Action::Modify => (UDPVerdict::AcceptModify, false),
+        gfw_ruleset::Action::Maybe => (UDPVerdict::Accept, false),
+        gfw_ruleset::Action::Allow => (UDPVerdict::AcceptStream, true),
+        gfw_ruleset::Action::Block => (UDPVerdict::DropStream, true),
+        gfw_ruleset::Action::Drop => (UDPVerdict::Drop, false),
+        gfw_ruleset::Action::Modify => (UDPVerdict::AcceptModify, false),
     }
 }
 
@@ -644,27 +644,27 @@ fn action_to_udp_verdict(action: &nt_ruleset::Action) -> (UDPVerdict, bool) {
 ///
 /// A vector of UDP analyzers.
 fn analyzers_to_udp_analyzers(
-    analyzers: &[Arc<dyn nt_analyzer::Analyzer>],
-) -> Vec<Arc<dyn nt_analyzer::UDPAnalyzer>> {
+    analyzers: &[Arc<dyn gfw_analyzer::Analyzer>],
+) -> Vec<Arc<dyn gfw_analyzer::UDPAnalyzer>> {
     analyzers
         .iter()
         .filter_map(|analyzer| {
-            if analyzer.as_any().is::<nt_analyzer::udp::dns::DNSAnalyzer>() {
-                Some(Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new())
-                    as Arc<dyn nt_analyzer::UDPAnalyzer>)
+            if analyzer.as_any().is::<gfw_analyzer::udp::dns::DNSAnalyzer>() {
+                Some(Arc::new(gfw_analyzer::udp::dns::DNSAnalyzer::new())
+                    as Arc<dyn gfw_analyzer::UDPAnalyzer>)
             } else if analyzer
                 .as_any()
-                .is::<nt_analyzer::udp::openvpn::OpenVPNAnalyzer>()
+                .is::<gfw_analyzer::udp::openvpn::OpenVPNAnalyzer>()
             {
-                Some(Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new())
-                    as Arc<dyn nt_analyzer::UDPAnalyzer>)
+                Some(Arc::new(gfw_analyzer::udp::openvpn::OpenVPNAnalyzer::new())
+                    as Arc<dyn gfw_analyzer::UDPAnalyzer>)
             } else if analyzer
                 .as_any()
-                .is::<nt_analyzer::udp::wireguard::WireGuardAnalyzer>()
+                .is::<gfw_analyzer::udp::wireguard::WireGuardAnalyzer>()
             {
                 Some(
-                    Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new())
-                        as Arc<dyn nt_analyzer::UDPAnalyzer>,
+                    Arc::new(gfw_analyzer::udp::wireguard::WireGuardAnalyzer::new())
+                        as Arc<dyn gfw_analyzer::UDPAnalyzer>,
                 )
             } else {
                 None
@@ -679,11 +679,11 @@ mod tests {
 
     #[test]
     fn test_analyzer_to_udp_analyzers() {
-        let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
-            Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
-            Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+        let analyzers: Vec<Arc<dyn gfw_analyzer::Analyzer>> = vec![
+            Arc::new(gfw_analyzer::tcp::http::HTTPAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::dns::DNSAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+            Arc::new(gfw_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
         ];
 
         let tcp_analyzers = analyzers_to_udp_analyzers(&analyzers);

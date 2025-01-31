@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::BytesMut;
-use nt_ruleset::expr_rule::ExprRuleset;
+use gfw_ruleset::expr_rule::ExprRuleset;
 use pnet::packet::{
     ip::IpNextHeaderProtocols, ipv4::MutableIpv4Packet, ipv6::MutableIpv6Packet,
     tcp::MutableTcpPacket, udp::MutableUdpPacket, MutablePacket, Packet,
@@ -32,7 +32,7 @@ const DEFAULT_UDP_MAX_STREAMS: u32 = 4096;
 const TCP_FLUSH_INTERVAL: Duration = Duration::from_secs(60);
 
 type SetVerdict = Box<
-    dyn FnOnce(nt_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
+    dyn FnOnce(gfw_io::Verdict, Option<Vec<u8>>) -> Result<(), Box<dyn Error + Send + Sync>>
         + Send
         + Sync,
 >;
@@ -180,7 +180,7 @@ impl Worker {
     /// A `Result` indicating success or failure.
     pub async fn update_ruleset(
         &mut self,
-        new_ruleset: Arc<dyn nt_ruleset::Ruleset>,
+        new_ruleset: Arc<dyn gfw_ruleset::Ruleset>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let factory = self.tcp_stream_factory.write().await;
         factory.update_ruleset(new_ruleset.clone()).await?;
@@ -205,7 +205,7 @@ impl Worker {
         &mut self,
         stream_id: u32,
         mut packet_data: Vec<u8>,
-    ) -> (nt_io::Verdict, Option<Vec<u8>>) {
+    ) -> (gfw_io::Verdict, Option<Vec<u8>>) {
         if let Some(mut ipv4) = MutableIpv4Packet::new(&mut packet_data) {
             debug!("Handling ipv4 packet");
             let src_ip = ipv4.get_source();
@@ -302,7 +302,7 @@ impl Worker {
         }
 
         debug!("Returning default verdict Accept");
-        (nt_io::Verdict::Accept, None)
+        (gfw_io::Verdict::Accept, None)
     }
 
     /// Handles a TCP packet.
@@ -323,7 +323,7 @@ impl Worker {
         src_ip: IpAddr,
         dst_ip: IpAddr,
         tcp_packet: &'a mut MutableTcpPacket<'a>,
-    ) -> nt_io::Verdict {
+    ) -> gfw_io::Verdict {
         debug!("Handling tcp packet");
 
         let mut tcp_context = TCPContext {
@@ -370,7 +370,7 @@ impl Worker {
         src_ip: IpAddr,
         dst_ip: IpAddr,
         udp_packet: &'a mut MutableUdpPacket<'a>,
-    ) -> (nt_io::Verdict, Option<Vec<u8>>) {
+    ) -> (gfw_io::Verdict, Option<Vec<u8>>) {
         debug!("Handling udp packet");
 
         let mut udp_context = UDPContext {
@@ -389,7 +389,7 @@ pub struct WorkerConfig {
     pub id: u32,
     pub chan_size: u32,
 
-    pub ruleset: Arc<dyn nt_ruleset::Ruleset>,
+    pub ruleset: Arc<dyn gfw_ruleset::Ruleset>,
 
     pub tcp_max_buffered_pages_total: u32,
     pub tcp_max_buffered_pages_per_conn: u32,
@@ -404,7 +404,7 @@ impl Default for WorkerConfig {
         Self {
             id: 0,
             chan_size: DEFAULT_CHAN_SIZE,
-            ruleset: Arc::new(nt_ruleset::expr_rule::ExprRuleset {
+            ruleset: Arc::new(gfw_ruleset::expr_rule::ExprRuleset {
                 engine: Arc::new(rhai::Engine::new()),
                 rules: Vec::new(),
                 analyzers: Vec::new(),

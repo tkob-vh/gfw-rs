@@ -3,10 +3,10 @@ use apiserver::ServerConfig;
 use axum::Extension;
 use axum::Router;
 use clap::Parser;
+use gfw_analyzer::Analyzer;
+use gfw_modifier::Modifier;
+use gfw_ruleset::expr_rule::read_expr_rules_from_file;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use nt_analyzer::Analyzer;
-use nt_modifier::Modifier;
-use nt_ruleset::expr_rule::read_expr_rules_from_file;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -128,23 +128,23 @@ async fn main() {
         .unwrap();
 
     let analyzers: Vec<Arc<dyn Analyzer>> = vec![
-        Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
-        Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+        Arc::new(gfw_analyzer::tcp::http::HTTPAnalyzer::new()),
+        Arc::new(gfw_analyzer::tcp::tls::TLSAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::dns::DNSAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
     ];
     let modifiers: Vec<Arc<dyn Modifier>> =
-        vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
+        vec![Arc::new(gfw_modifier::udp::dns::DNSModifier::new())];
     let rhai_engine = Arc::new(rhai::Engine::new());
     let ruleset =
-        nt_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, rhai_engine);
+        gfw_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, rhai_engine);
     let log_writer = LogWriter::new(100);
     let app = app.layer(Extension(Arc::new(RwLock::new(ServerConfig {
         log_writer: log_writer.clone(),
         analyzers,
         modifiers,
-        config: Arc::new(nt_cmd::config::CliConfig::default()),
+        config: Arc::new(gfw_cmd::config::CliConfig::default()),
         ruleset_file: cli.ruleset_file.clone(),
         config_tx: config_tx.clone(),
         io_impl: None,

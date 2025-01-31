@@ -6,8 +6,8 @@ use cmd::config::load_config_from_file;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, error, info};
 
-use nt_engine::Engine;
-use nt_ruleset::expr_rule::read_expr_rules_from_file;
+use gfw_engine::Engine;
+use gfw_ruleset::expr_rule::read_expr_rules_from_file;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -25,16 +25,16 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     // Setup analyzers
-    let analyzers: Vec<Arc<dyn nt_analyzer::Analyzer>> = vec![
-        Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
-        Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
-        Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
+    let analyzers: Vec<Arc<dyn gfw_analyzer::Analyzer>> = vec![
+        Arc::new(gfw_analyzer::tcp::http::HTTPAnalyzer::new()),
+        Arc::new(gfw_analyzer::tcp::tls::TLSAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::dns::DNSAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
+        Arc::new(gfw_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
     ];
 
-    let modifiers: Vec<Arc<dyn nt_modifier::Modifier>> =
-        vec![Arc::new(nt_modifier::udp::dns::DNSModifier::new())];
+    let modifiers: Vec<Arc<dyn gfw_modifier::Modifier>> =
+        vec![Arc::new(gfw_modifier::udp::dns::DNSModifier::new())];
 
     let cli = Cli::parse();
 
@@ -55,11 +55,11 @@ async fn main() {
     debug!("config: {:?}", config);
 
     debug!("Setting up the io...");
-    let io_impl: Arc<dyn nt_io::PacketIO> = if cli.pcap_file.is_some() {
+    let io_impl: Arc<dyn gfw_io::PacketIO> = if cli.pcap_file.is_some() {
         let pcap_file = cli.pcap_file.unwrap();
         debug!("Replaying from pcap file {:?}", &pcap_file);
         Arc::new(
-            nt_io::pcap::PcapPacketIO::new(nt_io::pcap::PcapPacketIOConfig {
+            gfw_io::pcap::PcapPacketIO::new(gfw_io::pcap::PcapPacketIOConfig {
                 pcap_file,
                 real_time: config.replay.realtime,
             })
@@ -68,7 +68,7 @@ async fn main() {
     } else {
         debug!("Setup IO for nfqueue...");
         Arc::new(
-            nt_io::nfqueue::NFQueuePacketIO::new(nt_io::nfqueue::NFQueuePacketIOConfig {
+            gfw_io::nfqueue::NFQueuePacketIO::new(gfw_io::nfqueue::NFQueuePacketIOConfig {
                 queue_size: config.io.queue_size,
                 local: config.io.local,
                 rst: config.io.rst,
@@ -88,9 +88,9 @@ async fn main() {
     debug!("rules: {:?}", raw_rs);
 
     debug!("Compiling the rules");
-    let rs = nt_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, engine);
+    let rs = gfw_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, engine);
 
-    let engine_config = nt_engine::Config {
+    let engine_config = gfw_engine::Config {
         workers: config.workers.count,
         worker_queue_size: config.workers.queue_size,
         worker_tcp_max_buffered_pages_total: config.workers.tcp_max_buffered_pages_total,
@@ -101,7 +101,7 @@ async fn main() {
         ruleset: Arc::new(rs),
     };
     let mut engine =
-        nt_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
+        gfw_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
 
     // Initialize the tokio task tracker.
     let tracker = tokio_util::task::TaskTracker::new();
