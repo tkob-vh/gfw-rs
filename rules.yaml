@@ -3,6 +3,11 @@
   analyzer: http
   expr: props["http"]["req"]["headers"]["host"].ends_with("v2ex.com")
 
+- name: block baidu tls
+  action: block
+  analyzer: tls
+  expr: props["tls"]["req"]["sni"].ends_with("baidu.com")
+
 - name: github dns poisoning
   action: modify
   analyzer: dns

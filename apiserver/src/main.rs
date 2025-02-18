@@ -129,6 +129,7 @@ async fn main() {
 
     let analyzers: Vec<Arc<dyn Analyzer>> = vec![
         Arc::new(nt_analyzer::tcp::http::HTTPAnalyzer::new()),
+        Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()),
         Arc::new(nt_analyzer::udp::dns::DNSAnalyzer::new()),
         Arc::new(nt_analyzer::udp::openvpn::OpenVPNAnalyzer::new()),
         Arc::new(nt_analyzer::udp::wireguard::WireGuardAnalyzer::new()),
