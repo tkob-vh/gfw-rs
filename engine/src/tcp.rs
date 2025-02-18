@@ -644,8 +644,10 @@ fn analyzers_to_tcp_analyzers(
                     as Arc<dyn nt_analyzer::TCPAnalyzer>)
             }
             // Add other TCP analyzers here with else if blocks
-            // else if analyzer.as_any().is::<nt_analyzer::tcp::tls::TLSAnalyzer>() {
-            //     Some(Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            else if analyzer.as_any().is::<nt_analyzer::tcp::tls::TLSAnalyzer>() {
+                Some(Arc::new(nt_analyzer::tcp::tls::TLSAnalyzer::new())
+                    as Arc<dyn nt_analyzer::TCPAnalyzer>)
+            }
             // } else if analyzer.as_any().is::<nt_analyzer::tcp::ssh::SSHAnalyzer>() {
             //     Some(Arc::new(nt_analyzer::tcp::ssh::SSHAnalyzer::new()) as Arc<dyn nt_analyzer::TCPAnalyzer>)
             // }
