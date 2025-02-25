@@ -2,11 +2,12 @@ use std::path::Path;
 use std::{sync::Arc, time::Duration};
 
 use clap::Parser;
-use cmd::config::load_config_from_file;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, error, info};
 
+use gfw_config::config::load_config_from_file;
 use gfw_engine::Engine;
+use gfw_ruleset::engine::Engine as RulesetEngine;
 use gfw_ruleset::expr_rule::read_expr_rules_from_file;
 
 #[derive(Parser, Debug)]
@@ -78,7 +79,7 @@ async fn main() {
     };
 
     debug!("Setting up the ruleset engine");
-    let engine = Arc::new(rhai::Engine::new());
+    let ruleset_engine = RulesetEngine::new(&config.ruleset.geoip, &config.ruleset.geosite);
 
     debug!("Loading the ruleset from {}...", &cli.ruleset_file);
     let raw_rs = read_expr_rules_from_file(&cli.ruleset_file)
@@ -88,7 +89,12 @@ async fn main() {
     debug!("rules: {:?}", raw_rs);
 
     debug!("Compiling the rules");
-    let rs = gfw_ruleset::expr_rule::compile_expr_rules(raw_rs, &analyzers, &modifiers, engine);
+    let rs = gfw_ruleset::expr_rule::compile_expr_rules(
+        raw_rs,
+        &analyzers,
+        &modifiers,
+        ruleset_engine.clone(),
+    );
 
     let engine_config = gfw_engine::Config {
         workers: config.workers.count,
@@ -100,8 +106,8 @@ async fn main() {
         io: io_impl,
         ruleset: Arc::new(rs),
     };
-    let mut engine =
-        gfw_engine::engine::Engine::new(engine_config).expect("Failed to setup the gfw engine");
+    let mut engine = gfw_engine::engine::Engine::new(engine_config, ruleset_engine)
+        .expect("Failed to setup the gfw engine");
 
     // Initialize the tokio task tracker.
     let tracker = tokio_util::task::TaskTracker::new();

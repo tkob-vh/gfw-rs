@@ -68,7 +68,10 @@ async fn start_service(server: Extension<SharedServerConfig>) -> Result<String, 
             message: "Ruleset not found".to_string(),
         })?,
     };
-    let mut engine = gfw_engine::engine::Engine::new(engine_config).context(SetupEngineSnafu)?;
+
+    let mut engine =
+        gfw_engine::engine::Engine::new(engine_config, server_config.ruleset_engine.clone())
+            .context(SetupEngineSnafu)?;
 
     info!("Engine started");
 

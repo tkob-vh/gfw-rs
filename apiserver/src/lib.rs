@@ -1,9 +1,10 @@
 use logger::LogWriter;
 use gfw_analyzer::Analyzer;
-use gfw_cmd::config;
 use gfw_io::PacketIO;
 use gfw_modifier::Modifier;
 use gfw_ruleset::expr_rule::ExprRuleset;
+use gfw_config::config;
+use gfw_ruleset::engine::Engine as RulesetEngine;
 use std::sync::Arc;
 use tokio::sync::watch::Sender;
 use tokio::sync::RwLock;
@@ -24,6 +25,7 @@ pub struct ServerConfig {
     pub modifiers: Vec<Arc<dyn Modifier>>,
     pub config: Arc<config::CliConfig>,
     pub rule_set: Option<Arc<ExprRuleset>>,
+    pub ruleset_engine: RulesetEngine,
     pub ruleset_file: String,
     pub io_impl: Option<Arc<dyn PacketIO>>,
 

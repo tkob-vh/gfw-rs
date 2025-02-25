@@ -12,3 +12,10 @@ rhai.workspace = true
 gfw-analyzer.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
+ipnetwork = "0.20.0"
+regex = "1.11.1"
+reqwest = { version = "0.12.10", features = ["blocking"] }
+protobuf = "3.7.1"
+
+[build-dependencies]
+protobuf-codegen = "3.7.1"

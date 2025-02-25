@@ -146,8 +146,8 @@ impl Default for CliConfigWorkers {
 impl Default for CliConfigRuleset {
     fn default() -> Self {
         CliConfigRuleset {
-            geoip: "/path/to/geoip".to_string(),
-            geosite: "/path/to/geosite".to_string(),
+            geoip: "./geoip".to_string(),
+            geosite: "./geosite".to_string(),
         }
     }
 }

@@ -110,7 +110,7 @@ fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
 /// * `rules` - A vector of `ExprRule` structs.
 /// * `analyzers` - A vector of `Arc<dyn Analyzer>` structs.
 /// * `modifiers` - A vector of `Arc<dyn Modifier>` structs.
-/// * `engine` - A `rhai::Engine` instance.
+/// * `engine` - A `gfw_ruleset::engine::Engine` instance.
 ///
 /// # Returns
 /// * An `ExprRuleset` struct containing the compiled rules.
@@ -118,7 +118,7 @@ pub fn compile_expr_rules(
     rules: Vec<ExprRule>,
     analyzers: &[Arc<dyn Analyzer>],
     modifiers: &[Arc<dyn Modifier>],
-    engine: Arc<rhai::Engine>,
+    engine: crate::engine::Engine,
 ) -> ExprRuleset {
     let analyzers: HashMap<String, Arc<dyn Analyzer>> = analyzers
         .iter()
@@ -133,7 +133,7 @@ pub fn compile_expr_rules(
     let mut compiled_rules = Vec::new();
     let mut anal = HashMap::new();
     for rule in rules {
-        if let Ok(ast) = engine.compile(rule.expr) {
+        if let Ok(ast) = engine.engine.compile(rule.expr) {
             let modifier = match rule.modifier {
                 Some(modifier) => {
                     let a = modifiers.get(&modifier.name);
@@ -161,7 +161,7 @@ pub fn compile_expr_rules(
         }
     }
     ExprRuleset {
-        engine,
+        engine: engine.engine.clone(),
         rules: compiled_rules,
         analyzers: anal.into_values().collect(),
     }
