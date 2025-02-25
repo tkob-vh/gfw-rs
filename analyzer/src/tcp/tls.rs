@@ -105,7 +105,7 @@ impl TLSStream {
             }
 
             self.client_hello_len =
-                (header[6] as i32) << 16 | (header[7] as i32) << 8 | (header[8] as i32);
+                ((header[6] as i32) << 16) | ((header[7] as i32) << 8) | (header[8] as i32);
             if self.client_hello_len < MIN_DATA_SIZE {
                 return utils::lsm::LSMAction::Cancel;
             }
@@ -166,7 +166,7 @@ impl TLSStream {
             }
 
             self.server_hello_len =
-                (header[6] as i32) << 16 | (header[7] as i32) << 8 | (header[8] as i32);
+                ((header[6] as i32) << 16) | ((header[7] as i32) << 8) | (header[8] as i32);
             if self.server_hello_len < MIN_DATA_SIZE {
                 return utils::lsm::LSMAction::Cancel;
             }
