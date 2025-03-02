@@ -3,9 +3,11 @@ use crate::Action;
 use gfw_analyzer::extract_json_from_combinedpropmap;
 use gfw_analyzer::Analyzer;
 use gfw_modifier::{Instance, Modifier};
+use regex::Regex;
 use rhai::Dynamic;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
@@ -99,10 +101,12 @@ impl crate::Ruleset for ExprRuleset {
 fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
     // Convert PropMap to JSON
     let json_value = extract_json_from_combinedpropmap(&info.props);
+    debug!("info.props: {:?}", json_value);
     let result: Dynamic = serde_json::from_value(json_value).unwrap();
-
     // // Add JSON string to scope
     scope.push("props", result);
+    scope.push("src_ip", info.src_ip.to_string());
+    scope.push("dst_ip", info.dst_ip.to_string());
 }
 
 /// Compiles a set of expression rules.
@@ -114,7 +118,7 @@ fn get_scope(scope: &mut rhai::Scope, info: &crate::StreamInfo) {
 ///
 /// # Returns
 /// * An `ExprRuleset` struct containing the compiled rules.
-pub fn compile_expr_rules(
+pub async fn compile_expr_rules(
     rules: Vec<ExprRule>,
     analyzers: &[Arc<dyn Analyzer>],
     modifiers: &[Arc<dyn Modifier>],
@@ -130,10 +134,27 @@ pub fn compile_expr_rules(
         .map(|m| (m.name().to_owned(), m.clone()))
         .collect();
 
+    let geoip_conditions = rules
+        .iter()
+        .filter_map(|r| extract_geoip_param(&r.expr).map(|s| s.to_owned()))
+        .filter(|condition| !condition.is_empty())
+        .collect::<HashSet<String>>();
+
+    let geosite_conditions = rules
+        .iter()
+        .filter_map(|r| extract_geosite_param(&r.expr).map(|s| s.to_owned()))
+        .filter(|condition| !condition.is_empty())
+        .collect::<HashSet<String>>();
+
+    let engine = engine
+        .register(geoip_conditions, geosite_conditions)
+        .await
+        .unwrap();
+
     let mut compiled_rules = Vec::new();
     let mut anal = HashMap::new();
     for rule in rules {
-        if let Ok(ast) = engine.engine.compile(rule.expr) {
+        if let Ok(ast) = engine.compile(rule.expr) {
             let modifier = match rule.modifier {
                 Some(modifier) => {
                     let a = modifiers.get(&modifier.name);
@@ -161,9 +182,56 @@ pub fn compile_expr_rules(
         }
     }
     ExprRuleset {
-        engine: engine.engine.clone(),
+        engine: Arc::new(engine),
         rules: compiled_rules,
         analyzers: anal.into_values().collect(),
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref GEOSITE_REGEX: Regex = Regex::new(r"geosite\(([^,]+),\s*([^\),]+)").unwrap();
+    static ref GEOIP_REGEX: Regex = Regex::new(r"geoip\(([^,]+),\s*([^\),]+)").unwrap();
+}
+
+fn extract_geosite_param(input: &str) -> Option<&str> {
+    GEOSITE_REGEX
+        .captures(input)
+        .and_then(|cap| cap.get(2))
+        .map(|m| m.as_str().trim_matches(|c| c == '\"' || c == ' '))
+}
+
+fn extract_geoip_param(input: &str) -> Option<&str> {
+    GEOIP_REGEX
+        .captures(input)
+        .and_then(|cap| cap.get(2))
+        .map(|m| m.as_str().trim_matches(|c| c == '\"' || c == ' '))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_geosite_extraction() {
+        assert_eq!(
+            extract_geosite_param(r#"geosite(key, "bilibili")"#).unwrap(),
+            "bilibili"
+        );
+        assert_eq!(
+            extract_geosite_param(r#"geosite(abc, "bilibili")"#).unwrap(),
+            "bilibili"
+        );
+        assert_eq!(extract_geoip_param(r#"geoip(dst_ip, "cn")"#).unwrap(), "cn");
+        assert_eq!(extract_geosite_param(r#"invalid_format(123)"#), None);
+        assert_eq!(
+            extract_geosite_param(r#"geosite(missing_quote, "")"#).unwrap(),
+            ""
+        );
+        assert_eq!(
+            extract_geosite_param(r#"geosite(nested, "multi word")"#).unwrap(),
+            "multi word"
+        );
+        assert_eq!(extract_geosite_param(r#"geosite(empty, )"#).unwrap(), "");
     }
 }
 

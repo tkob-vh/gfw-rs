@@ -165,7 +165,7 @@ impl crate::Engine for Engine {
                                 &analyzers,
                                 &modifiers,
                                 self.ruleset_engine.clone(),
-                            );
+                            ).await;
 
                             _ = rs_tx.send(rs).unwrap();
 

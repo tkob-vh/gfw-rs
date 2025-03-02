@@ -2,18 +2,17 @@ use crate::builtins::geo::v2geo::v2geo::{domain, GeoIP, GeoSite};
 use crate::builtins::geo::v2geo::v2geo_loader;
 use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::task;
-use tracing::error;
+use tracing::{debug, error};
 
 pub struct HostInfo {
     pub name: String,
     pub ip: Option<IpAddr>,
 }
 
+#[derive(Debug)]
 pub struct IpMatcher {
     v4: Vec<IpNetwork>,
     v6: Vec<IpNetwork>,
@@ -215,84 +214,82 @@ fn attribute_to_map(attrs: &Vec<domain::Attribute>) -> HashMap<String, bool> {
 
 #[derive(Clone)]
 pub struct GeoMatcher {
-    geoloader: Arc<Mutex<v2geo_loader::V2GeoLoader>>,
-    geoip: Arc<Mutex<HashMap<String, IpMatcher>>>,
-    geosite: Arc<Mutex<HashMap<String, SiteMatcher>>>,
+    geoip: Arc<HashMap<String, IpMatcher>>,
+    geosite: Arc<HashMap<String, SiteMatcher>>,
 }
 
 impl GeoMatcher {
-    pub fn new(geosite_file: &str, geoip_file: &str) -> Self {
-        Self {
-            geoloader: Arc::new(Mutex::new(v2geo_loader::V2GeoLoader::new(
-                geoip_file,
-                geosite_file,
-            ))),
-            geoip: Arc::new(Mutex::new(HashMap::new())),
-            geosite: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
+    pub async fn new(
+        geosite_file: &str,
+        geoip_file: &str,
+        geoip_conditions: HashSet<String>,
+        geosite_conditions: HashSet<String>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        let geoloader = v2geo_loader::V2GeoLoader::new(geoip_file, geosite_file);
+        let geoip = geoloader.load_geoip().await?;
+        let geosite = geoloader.load_geosite().await?;
 
-    pub fn geoip(&self, ip: String, condition: String) -> bool {
-        let geoip = self.geoip.clone();
-        let loader = self.geoloader.clone();
-        task::block_in_place(move || {
-            let mut geoip = geoip.blocking_lock();
-            if !geoip.contains_key(&condition) {
-                let coutry = condition.to_lowercase();
-                if coutry.is_empty() {
-                    return false;
+        let geoip = geoip_conditions
+            .into_iter()
+            .filter_map(|condition| {
+                let country = condition.to_lowercase();
+                if country.is_empty() {
+                    return None;
                 }
-                let mut loader = loader.blocking_lock();
-                if let Ok(gmap) = loader.load_geoip() {
-                    if let Some(list) = gmap.get(&coutry) {
-                        let matcher = IpMatcher::new(list);
-                        geoip.insert(condition.clone(), matcher);
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
+                if let Some(list) = geoip.get(&country) {
+                    let matcher = IpMatcher::new(list);
+                    return Some((condition, matcher));
                 }
-            }
-            if let Ok(ip_addr) = ip.parse::<IpAddr>() {
-                let mather = geoip.get(&condition).unwrap();
-                return mather.match_ip(HostInfo {
-                    name: "".to_string(),
-                    ip: Some(ip_addr),
-                });
-            }
-            false
+                None
+            })
+            .collect();
+
+        let geosite = geosite_conditions
+            .into_iter()
+            .filter_map(|condition| {
+                let condition_l = condition.to_lowercase();
+                let (name, attrs) = parse_geo_site_name(&condition_l);
+                if name.is_empty() {
+                    return None;
+                }
+                if let Some(list) = geosite.get(&name) {
+                    let matcher = SiteMatcher::new(list, attrs);
+                    return Some((condition, matcher));
+                }
+                None
+            })
+            .collect();
+
+        Ok(Self {
+            geoip: Arc::new(geoip),
+            geosite: Arc::new(geosite),
         })
     }
 
+    pub fn geoip(&self, ip: String, condition: String) -> bool {
+        debug!("geoip: {} {}", ip, condition);
+        if !self.geoip.contains_key(&condition) {
+            return false;
+        }
+        if let Ok(ip_addr) = ip.parse::<IpAddr>() {
+            let mather = self.geoip.get(&condition).unwrap();
+            return mather.match_ip(HostInfo {
+                name: "".to_string(),
+                ip: Some(ip_addr),
+            });
+        }
+        false
+    }
+
     pub fn geosite(&self, host: String, condition: String) -> bool {
-        let geosite = self.geosite.clone();
-        let loader = self.geoloader.clone();
-        task::block_in_place(move || {
-            let mut geosite = geosite.blocking_lock();
-            if !geosite.contains_key(&condition) {
-                let condition = condition.to_lowercase();
-                let (name, attrs) = parse_geo_site_name(&condition);
-                if name.is_empty() {
-                    return false;
-                }
-                let mut loader = loader.blocking_lock();
-                if let Ok(smap) = loader.load_geosite() {
-                    if let Some(list) = smap.get(&name) {
-                        let matcher = SiteMatcher::new(list, attrs);
-                        geosite.insert(condition.clone(), matcher);
-                    } else {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-            let matcher = geosite.get(&condition).unwrap();
-            matcher.match_domain(HostInfo {
-                name: host,
-                ip: None,
-            })
+        debug!("geosite: {} {}", host, condition);
+        if !self.geosite.contains_key(&condition) {
+            return false;
+        }
+        let matcher = self.geosite.get(&condition).unwrap();
+        matcher.match_domain(HostInfo {
+            name: host,
+            ip: None,
         })
     }
 }

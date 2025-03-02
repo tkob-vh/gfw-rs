@@ -11,3 +11,13 @@ pub fn is_ip_in_cidr(ip: &str, cidr: &str) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_is_ip_in_cidr() {
+        assert_eq!(is_ip_in_cidr("192.168.1.1", "192.168.0.0/16"), true);
+    }
+}

@@ -14,8 +14,8 @@ workers:
   udp_max_streams: 4096
 
 ruleset:
-  geoip: "/path/to/geoip"
-  geosite: "/path/to/geosite"
+  geoip: "./geoip.dat"
+  geosite: "./geosite.dat"
 
 replay:
   realtime: false

@@ -11,17 +11,17 @@
 - name: geosite
   action: block
   analyzer: http
-  expr: geosite(props["http"]["headers"]["host"], "bilibili")
+  expr: geosite(props["http"]["req"]["headers"]["host"], "bilibili")
 
 - name: block CN geoip
   action: block
   analyzer: ""
-  expr: geoip(props["ip"]["dst"], "cn")
+  expr: geoip(dst_ip, "cn")
 
 - name: block cidr
   action: block
   analyzer: ""
-  expr: cidr(props["ip"]["dst"], "192.168.0.0/16")
+  expr: cidr(dst_ip, "192.168.0.0/16")
 
 - name: github dns poisoning
   action: modify

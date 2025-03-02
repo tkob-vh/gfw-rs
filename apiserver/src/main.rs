@@ -5,9 +5,9 @@ use axum::Router;
 use clap::Parser;
 use gfw_analyzer::Analyzer;
 use gfw_modifier::Modifier;
+use gfw_ruleset::engine::Engine as RulesetEngine;
 use gfw_ruleset::expr_rule::read_expr_rules_from_file;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use gfw_ruleset::engine::Engine as RulesetEngine;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -146,7 +146,8 @@ async fn main() {
         &analyzers,
         &modifiers,
         ruleset_engine.clone(),
-    );
+    )
+    .await;
     let log_writer = LogWriter::new(100);
     let app = app.layer(Extension(Arc::new(RwLock::new(ServerConfig {
         log_writer: log_writer.clone(),

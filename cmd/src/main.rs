@@ -94,7 +94,8 @@ async fn main() {
         &analyzers,
         &modifiers,
         ruleset_engine.clone(),
-    );
+    )
+    .await;
 
     let engine_config = gfw_engine::Config {
         workers: config.workers.count,
