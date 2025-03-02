@@ -42,7 +42,8 @@ async fn save_rules(
             &server_config.analyzers,
             &server_config.modifiers,
             server_config.ruleset_engine.clone(),
-        );
+        )
+        .await;
         server_config.rule_set = Some(Arc::new(ruleset));
     }
     Ok(())
