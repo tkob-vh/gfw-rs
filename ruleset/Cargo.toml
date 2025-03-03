@@ -17,6 +17,3 @@ regex = "1.11.1"
 reqwest = "0.12.10"
 protobuf = "3.7.1"
 lazy_static = "1.4"
-
-[build-dependencies]
-protobuf-codegen = "3.7.1"
