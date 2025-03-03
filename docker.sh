@@ -24,8 +24,8 @@ CONTAINER_RUNTIME=$(get_container_runtime)
 red_echo "(build/clean):"
 read ACTION
 
-IMAGE_NAME="gfw-secure:latest"
-CONTAINER_NAME="gfw-secure"
+IMAGE_NAME="gfw-rs:latest"
+CONTAINER_NAME="gfw-rs"
 
 if [ "$ACTION" == "build" ]; then
   red_echo "Building $CONTAINER_RUNTIME image..."
